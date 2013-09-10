@@ -1026,7 +1026,7 @@ void havocbot_chooseweapon()
 		}
 	}
 
-#ifdef 0
+#if 0
 	// TODO: This disabled code is not working well and got replaced by custom weapon priorities.
 	// However, this logic should be refactored and moved to weapons code so each new weapon can be
 	// evaluated dynamically by bots without updating the "ai" or config files.	--mand1nga

@@ -6,11 +6,13 @@
 
 .float antilag_debug;
 
+#ifndef GMQCC
 void antilag_dummy()
 {
 	self.antilag_times = 0;
 	self.antilag_origins = '0 0 0';
 }
+#endif
 
 void antilag_record(entity e, float t)
 {
@@ -30,19 +32,19 @@ void antilag_record(entity e, float t)
 float antilag_find(entity e, float t)
 {
 	float i;
-
+    
 	for(i = e.antilag_index; i > 0; --i)
 		if(e.(antilag_times[i]) >= t)
 			if(e.(antilag_times[i - 1]) < t)
 				return i - 1;
-
+    
 	if(e.(antilag_times[0]) >= t)
 		if(e.(antilag_times[ANTILAG_MAX_ORIGINS - 1]) < t)
 			return ANTILAG_MAX_ORIGINS - 1;
 
 	for(i = ANTILAG_MAX_ORIGINS - 1; i > e.antilag_index + 1; --i)
 		if(e.(antilag_times[i]) >= t)
-			if(e.(antilag_times[i - 1]) < t)
+			if(e.(antilag_times[i - 1]) < t) 
 				return i - 1;
 
 	// if we get here, t is sandwiched nowhere, so let's assume it's in the present
@@ -69,7 +71,21 @@ vector antilag_takebackorigin(entity e, float t)
 	if(i1 >= ANTILAG_MAX_ORIGINS)
 		i1 = 0;
 
-	return lerp(e.(antilag_times[i0]), e.(antilag_origins[i0]), e.(antilag_times[i1]), e.(antilag_origins[i1]), t);
+    /*
+     * FIXME: find out what's up with vector field arrays
+     * 
+    local .vector fld;
+    fld = antilag_origins[i0];
+    print(" *** Set fld successfully.\n");
+    print(" *** e.fld value: ", vtos(e.fld), "\n");
+    print(" *** e.(antilag_origins[i0]) value: ", vtos(e.(antilag_origins[i0])), "\n");
+    */
+
+    .vector o_i0 = antilag_origins[i0];
+    .vector o_i1 = antilag_origins[i1];
+    
+	//return lerp(e.(antilag_times[i0]), e.(antilag_origins[i0]), e.(antilag_times[i1]), e.(antilag_origins[i1]), t);
+	return lerp(e.(antilag_times[i0]), e.o_i0, e.(antilag_times[i1]), e.o_i1, t);
 }
 
 void antilag_takeback(entity e, float t)

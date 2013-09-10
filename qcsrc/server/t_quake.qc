@@ -17,6 +17,7 @@ void spawnfunc_item_health (void) {if (self.spawnflags & 2) spawnfunc_item_healt
 
 
 // garbage function to reduce warnings in compiling about unused variables
+#ifndef GMQCC
 void junk_function ()
 {
 	self.exteriormodeltoclient = world;
@@ -63,4 +64,4 @@ void junk_function ()
 	gettaginfo_right = '0 0 0';
 	gettaginfo_up = '0 0 0';
 }
-
+#endif

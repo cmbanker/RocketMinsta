@@ -18,7 +18,7 @@ float menuMouseMode;
 
 void SUB_Null() { };
 
-void() m_init =
+void m_init()
 {
 	registercvar("_menu_alpha", "0", 0);
 	cvar_set("_menu_alpha", "0");

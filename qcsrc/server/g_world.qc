@@ -4,7 +4,7 @@ float world_initialized;
 
 string GetMapname();
 void GotoNextMap();
-void ShuffleMaplist()
+void ShuffleMaplist();
 float() DoNextMapOverride;
 
 void SetDefaultAlpha()
@@ -2802,7 +2802,7 @@ void MapVote_Think()
 
 string GameTypeVote_GetOptions()
 {
-	#ifdef 0
+	#if 0
 	if not(cvar("sv_vote_gametype_maxmaps"))
 		return cvar_string("sv_vote_gametype_options");
 

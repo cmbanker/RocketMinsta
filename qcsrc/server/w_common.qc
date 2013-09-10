@@ -36,7 +36,7 @@ void FireRailgunBullet (vector start, vector end, float bdamage, float bforce, f
 	string snd;
 	entity pseudoprojectile;
 	float f, ffs;
-
+    
 	did_hit = 0;
 
 	railgun_start = start;
@@ -148,7 +148,7 @@ void FireRailgunBullet (vector start, vector end, float bdamage, float bforce, f
 		// advance to the next entity
 		ent = findfloat(ent, railgunhit, TRUE);
 	}
-
+    
 	//calculate hits and fired shots for hitscan
 	if not(inWarmupStage)
 	if not(self.isbot)

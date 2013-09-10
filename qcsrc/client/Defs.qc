@@ -1,7 +1,9 @@
 #define CLIENT_SIDE
 
+#ifndef GMQCC
 #pragma flag off fastarrays // make dp behave with new fteqcc versions. remove when dp bug with fteqcc fastarrays is fixed
 #pragma flag on subscope
+#endif
 
 //NOTE: THIS IS AN INTERFACE FILE. DO NOT EDIT.
 //MODIFYING THIS FILE CAN RESULT IN CRC ERRORS.

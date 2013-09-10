@@ -17,7 +17,7 @@ string wordwrap(string s, float l);
 void wordwrap_sprint(string s, float l);
 #endif
 #endif
-void wordwrap_cb(string s, float l, void(string) callback)
+void wordwrap_cb(string s, float l, void(string) callback);
 
 float GameCommand_Generic(string cmd);
 // returns TRUE if handled, FALSE otherwise
