@@ -41,12 +41,27 @@ const float TE_CSQC_VOTERESET = 109;
 const float TE_CSQC_MADOKAPRINT = 110;
 const float TE_CSQC_MORNINGRESCUE = 111;
 const float TE_CSQC_CLEARBIGPRINT = 112;
-const float TE_CSQC_SPEEDRECORD = 113;
+const float TE_CSQC_SERVERINFO = 113;
 const float TE_CSQC_HUDFLASH = 114;
 const float TE_CSQC_HUDFLASH_TEAMCOLOR = 115;
 const float TE_CSQC_VIPINFO = 116;
 const float TE_CSQC_CAMERA = 117;
-const float TE_CSQC_SERVERINFO = 118;
+const float TE_CSQC_VISUALDAMAGE = 118;
+const float TE_CSQC_HEAL = 119;
+const float TE_CSQC_BLAST = 120;
+const float TE_CSQC_DTRACK = 121;
+const float TE_CSQC_MEODP = 122;
+const float TE_CSQC_RADIO = 123;
+const float TE_CSQC_ZAPPERLIGHTNING = 124;
+
+#define VDMG_TYPE_HIT 1
+#define VDMG_TYPE_CRIT 2
+#define VDMG_TYPE_HEAL 4
+#define VDMG_TYPE_TEAMHIT 8
+#define VDMG_TYPE_TOSELF 16
+#define VDMG_TYPE_NOTPLAYERTARGET 32
+#define VDMG_TYPE_LETHAL 64
+#define VDMG_TYPE_ALIEN 128
 
 const float RACE_NET_CHECKPOINT_HIT_QUALIFYING = 0; // byte checkpoint, short time, short recordtime, string recordholder
 const float RACE_NET_CHECKPOINT_CLEAR = 1;
@@ -80,7 +95,8 @@ const float ENT_CLIENT_RANDOMSEED = 19;
 const float ENT_CLIENT_WALL = 20;
 const float ENT_CLIENT_SPIDERBOT = 21;
 const float ENT_CLIENT_MODELEFFECT = 22;
-const float ENT_CLIENT_SHOWNAMES = 23;
+const float ENT_CLIENT_ZAPPER = 23;
+const float ENT_CLIENT_BUFFMODEL = 24;
 
 const float ENT_CLIENT_TURRET = 40;
 
@@ -269,6 +285,15 @@ const float STAT_HUD = 50;
 const float HUD_NORMAL = 0;
 const float HUD_SPIDERBOT = 10;
 
+const float STAT_ROUNDSTATE = 51;
+const float ROUNDSTATE_PREGAME = 0;
+const float ROUNDSTATE_GAME = 1;
+const float ROUNDSTATE_OVER = 2;
+const float ROUNDSTATE_WARMUP = 3;
+
+const float STAT_QUEUE = 52;
+const float STAT_ZAPPER_HEAT = 53;
+
 const float STAT_SPIDERBOT_HEALTH  = 60;
 const float STAT_SPIDERBOT_ROCKETS = 61;
 const float STAT_SPIDERBOT_HEAT    = 62;
@@ -294,7 +319,7 @@ const float STAT_MINSTA = 75;
 const float STAT_HGFORCE = 76;
 const float STAT_HGAMMO = 77;
 const float STAT_SM_HASGEM = 78;
-const float STAT_UNLOCK_PROGRESS = 79;
+const float STAT_CAPTURE_PROGRESS = 79;
 const float STAT_PRISONED = 80;
 const float STAT_ROUNDLOST = 81;
 const float STAT_HGREGEN = 82;
@@ -304,6 +329,18 @@ const float STAT_HGLAUNCH = 85;
 const float STAT_HGSHIELD = 86;
 const float STAT_HGTYPE = 87;
 const float STAT_JBMSG = 88;
+const float STAT_HGSHIELDPOWER = 89;
+const float STAT_HGBONUS = 90;
+const float STAT_HGBONUSTYPE = 91;
+const float STAT_BUFFS = 92;
+const float STAT_TERM_AUTH = 93;
+const float STAT_STEALTH = 94;
+const float STAT_HGREFIRE = 95;
+const float STAT_STEALTH_SAVED = 96;
+const float STAT_HGSHIELDSTORE = 97;
+const float STAT_HGSHIELDSTOREMAX = 98;
+const float STAT_HGREGENMAX = 99;
+const float STAT_HGREGENRATE = 100;
 
 const float JBMSG_NONE = 0;
 const float JBMSG_CAPPINGNEUTRAL = 1;
@@ -355,7 +392,7 @@ const float JBMSG_TOOLATE = 5;
  * Score indices
  */
  
-#define MAX_SCORE 19
+#define MAX_SCORE 22
 #define MAX_TEAMSCORE 2
 
 #define ST_SCORE 0
@@ -365,14 +402,22 @@ const float JBMSG_TOOLATE = 5;
 #define SP_SCORE 3
 
 #define SP_HOOKFRAGS 10
-#define SP_FREEZETAG_FROZENSTATUS 11
-#define SP_MADOKASTATUS 12
-#define SP_AWAYSTATUS 13
-#define SP_JOINTIME 14
-#define SP_CN_CHAR0 15
-#define SP_CN_CHAR1 16
-#define SP_FPS 17
-#define SP_NADEMODE 18
+#define SP_FLAGS 11
+#define SP_PLAYTIME 12
+#define SP_COUNTRY 13
+#define SP_ACCURACY 14
+#define SP_FPS 15
+#define SP_NADEMODE 16
+#define SP_NADEFRAGS 17
+#define SP_REVIVALS 18
+#define SP_DAMAGE 19
+#define SP_HEALING 20
+#define SP_QUEUE 21
+
+#define SPFLAG_FROZEN   1
+#define SPFLAG_MADOKA   2
+#define SPFLAG_AWAY     4
+#define SPFLAG_MUTE     8
 
 // the following like should be in ctf.qc as per status quo, but ask me if I care
 // --ThexDarksider
@@ -463,8 +508,11 @@ float PROJECTILE_HG_NAPALM = 27;
 float PROJECTILE_HG_PLASMA = 28;
 float PROJECTILE_HG_TRANSLOC = 29;
 float PROJECTILE_HG_REMOTE = 30;
+float PROJECTILE_HG_LASER = 31;
 
 float PROJECTILE_HG_NAPALMSHARD = 50;
+
+float PROJECTILE_HEAL_PARTICLE_EMITTER = 70;
 
 float SPECIES_HUMAN        =  0;
 float SPECIES_ROBOT_SOLID  =  1;
@@ -496,6 +544,13 @@ float DEATH_TOUCHEXPLODE = 10015;
 float DEATH_CHEAT = 10016;
 float DEATH_FIRE = 10017;
 float DEATH_TURRET = 10100;
+float DEATH_NOISE = 10101;
+float DEATH_ARC = 10102;
+float DEATH_IGNITE = 10103;
+float DEATH_LINKER_SHARE = 10104;
+float DEATH_VAMPIRE = 10105;
+float DEATH_ITEM = 10106;
+float DEATH_MEODP = 10107;
 
 float DEATH_HG_START = 100;
 float DEATH_HG_NORMAL = 100;
@@ -505,7 +560,12 @@ float DEATH_HG_PLASMA = 103;
 float DEATH_HG_PLASMA_SHARD = 104;
 float DEATH_HG_TRANSLOC = 105;
 float DEATH_HG_SHIELD = 106;
-float DEATH_HG_END = 106;
+float DEATH_HG_LINKER = 107;
+float DEATH_HG_GG = 108;
+float DEATH_HG_LASER = 109;
+float DEATH_HG_CLOAK = 110;
+float DEATH_HG_BAIT = 111;
+float DEATH_HG_END = 111;
 
 float DEATH_WEAPONMASK = 0xFF;
 float DEATH_HITTYPEMASK = 0x1F00; // which is WAY below 10000 used for normal deaths
@@ -564,23 +624,14 @@ float MAX_SHOT_DISTANCE = 32768;
 #define RM_SOUND_REBIRTH "misc/poweroff.wav"
 #define RM_SOUND_RECOVERY "misc/poweroff.wav"
 
-
-// xonotic compat
-
-#define autocvar_hud_shownames (rm_shownames)
-#define autocvar_sv_shownames_cull_distance 2500
-#define autocvar_hud_shownames_enemies 2
-#define autocvar_hud_shownames_height 15
-#define autocvar_hud_shownames_status 0
-#define autocvar_hud_panel_healtharmor_maxhealth 0
-#define autocvar_hud_panel_healtharmor_maxarmor 0
-#define autocvar_hud_shownames_aspect 8
-#define autocvar_hud_shownames_fontsize 10
-#define autocvar_hud_shownames_decolorize 1
-#define autocvar_hud_shownames_alpha 0.9
-#define autocvar_hud_shownames_resize 0
-#define autocvar_hud_shownames_mindistance 1000
-#define autocvar_hud_shownames_maxdistance 2500
+// TODO: cvars for these
+#define SHOWNAMES_ALPHA 0.9
+#define SHOWNAMES_MAXDISTANCE 2500
+#define SHOWNAMES_MINDISTANCE 1000
+#define SHOWNAMES_FONTSIZE 10
+#define SHOWNAMES_ASPECT 8
+#define SHOWNAMES_HEIGHT 15
+#define SHOWNAMES_ORIGIN_OFFSET '0 0 48'
 
 #ifndef MENUQC
 const vector eX = '1 0 0';

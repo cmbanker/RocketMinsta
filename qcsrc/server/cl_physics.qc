@@ -60,9 +60,12 @@ void PlayerJump (void)
 
 		return;
 	}
-
-	if(g_freezetag)
-	if(self.freezetag_frozen)
+    
+    if(time < self.hg_plasmalock)
+        return;
+    
+	if(g_freeze)
+	if(self.frozen)
 		return;
 
 	if (!(self.flags & FL_ONGROUND))
@@ -112,8 +115,9 @@ void PlayerJump (void)
 
 	self.velocity_z = self.velocity_z + mjumpheight;
 	self.oldvelocity_z = self.velocity_z;
+	if(!self.crouch){
 	self.lastwj = time - 0.8; // a clever little trick to prevent walljumping off sidewalks/stairs/etc. right after the initial jump
-
+	}
 	self.flags &~= FL_ONGROUND;
 	self.flags &~= FL_JUMPRELEASED;
 
@@ -519,22 +523,36 @@ void SpecialCommand()
 #endif
 }
 
-vector PlayerTouchWall()
+vector PlayerTouchWall(float dist)
 {
-	local float dist, max_normal, i;
-	dist = 10;
-	max_normal = 0.2;
+    float max_normal, i;
+    max_normal = 0.2;
+    
+    if(time < self.hg_plasmalock)
+        return '0 0 0';
+    
+    vector old_forward = v_forward, old_right = v_right, old_up = v_up, normal = '0 0 0';
+    makevectors(self.angles);
+    
+    float sh  = cvar("sv_stepheight");
+    float shc = cvar("g_walljump_stepheightcompensate");
+    float pc  = cvar("g_walljump_playerclip");
     
     for(i = 1; i > -2; i -= 2) {
-        tracebox(self.origin, self.mins, self.maxs, self.origin + v_forward * 100 * i, TRUE, self);
+        tracebox(self.origin, self.mins + sh * '0 0 1' * (shc? 1 : 0), self.maxs, self.origin + v_forward * dist * i * 2, TRUE, self);
         if(trace_fraction < 1)
         if(trace_plane_normal_z < max_normal)
-        if not(trace_dphitq3surfaceflags & Q3SURFACEFLAG_NOIMPACT)
-        if(vlen(self.origin - trace_endpos) < dist)
-            return trace_plane_normal;
+        if(!(trace_dphitq3surfaceflags & Q3SURFACEFLAG_NOIMPACT) || (pc && (trace_dphitcontents & DPCONTENTS_PLAYERCLIP)))
+        if(vlen(self.origin - trace_endpos) < dist) {
+            normal = trace_plane_normal;
+            break;
+        }
     }
     
-    return '0 0 0';
+    v_forward = old_forward;
+    v_right = old_right;
+    v_up = old_up;
+    return normal;
 }
 
 void SV_PlayerPhysics()
@@ -544,26 +562,29 @@ void SV_PlayerPhysics()
 	string temps;
 	float buttons_prev;
 	float not_allowed_to_move;
-    float isplayer;
+    float isplayer, isbait;
 	//string c;
     
-    isplayer = self.classname == "player";
+    isplayer = (self.classname == "player");
     
-    // XXX: why is this in Physics? Move to PlayerPreThink/PostThink later
-	if(self.movement != '0 0 0')
-	{
-		self.parm_idlesince = time;
-		if(self.is_away)
-			UnmarkAway(self);
-	}
-	else if(!self.is_away)
-	{
-		local float a = sv_autoaway;
+    if(isplayer) {
+        // XXX: why is this in Physics? Move to PlayerPreThink/PostThink later
+    	if(self.movement != '0 0 0')
+    	{
+    		self.parm_idlesince = time;
+    		if(self.is_away)
+    			UnmarkAway(self);
+    	}
+    	else if(!self.is_away)
+    	{
+    		local float a = sv_autoaway;
 
-		if(a)
-		if(time - self.parm_idlesince >= a * 60)
-			MarkAway(self, 0);
-	}
+    		if(a)
+    		if(time - self.parm_idlesince >= a * 60)
+    			MarkAway(self, 0);
+    	}
+    } else
+        isplayer = isbait = (self.classname == "bait_body");
 
 	if(g_race || g_cts)
 	{
@@ -613,27 +634,58 @@ void SV_PlayerPhysics()
     
     // as far as I know, fteqcc/rmqcc still does not optimize boolean expressions by default
 	if (g_walljump)
-	if (!(g_freezetag && self.freezetag_frozen) && self.health > 0)
+    //if (!self.hg_stealth)
+	if (!(g_freeze && self.frozen) && self.health > 0)
     if (isplayer)
     if (!(self.flags & FL_ONGROUND))
     if (self.BUTTON_JUMP)
     if ((time - self.lastwj) > g_walljump_delay)
 	if (!self.hook.state)
     if (!gameover)
+    if (!self.hg_shield || cvar("g_walljump_shielded"))
     if (!(g_race || g_cts) || cvar("g_walljump_allowed_in_race"))
 	{
-		local vector plane_normal;
-		plane_normal = PlayerTouchWall ();
+		vector plane_normal;
+		plane_normal = PlayerTouchWall(cvar("g_walljump_distance"));
 		if (plane_normal != '0 0 0')
 		{
 			self.lastwj = time;
-			float wj_force = cvar("g_walljump_force");
-			float wj_xy_factor = cvar("g_walljump_velocity_xy_factor");
+            vector kickdir, sidev = self.velocity;
+            sidev_z = 0;
+			float wj_force = max(cvar("g_walljump_force"), vlen(sidev) * cvar("g_walljump_force_velocityscale"));
 			float wj_z_factor = cvar("g_walljump_velocity_z_factor");
-			self.velocity_x += plane_normal_x * wj_force;
-			self.velocity_x /= wj_xy_factor;
-			self.velocity_y += plane_normal_y * wj_force;
-			self.velocity_y /= wj_xy_factor;
+            
+            if(cvar("g_walljump_reflect")) {
+                kickdir = normalize(sidev - 2 * (sidev * plane_normal) * plane_normal);
+                if(kickdir == '0 0 0')
+                    kickdir = plane_normal;
+            } else
+                kickdir = plane_normal;
+            
+            if(cvar("g_walljump_hardkick")) {
+                self.velocity_x = kickdir_x * wj_force;
+                self.velocity_y = kickdir_y * wj_force;
+            } else {
+                float wj_xy_factor = cvar("g_walljump_velocity_xy_factor");
+                float cap = cvar("g_walljump_velocity_xy_cap");
+                if(cap)
+                    cap = max(vlen(sidev) / wj_xy_factor, wj_force);
+                
+                if(cvar("g_walljump_velocity_xy_factor_initial_only")) {
+                    self.velocity_x = (self.velocity_x / wj_xy_factor) + (kickdir_x * wj_force);
+                    self.velocity_y = (self.velocity_y / wj_xy_factor) + (kickdir_y * wj_force);
+                } else {
+                    self.velocity_x = (self.velocity_x + kickdir_x * wj_force) / wj_xy_factor;
+                    self.velocity_y = (self.velocity_y + kickdir_y * wj_force) / wj_xy_factor;
+                }
+                
+                if(cap) {
+                    self.velocity_z = 0;
+                    if(vlen(self.velocity) > cap)
+                        self.velocity = normalize(self.velocity) * cap;
+                }
+            }
+            
 			self.velocity_z = sv_jumpvelocity * wj_z_factor;
 			if (self.crouch) self.velocity_z *= -1; // thanks Synap for the idea
 			self.oldvelocity = self.velocity;
@@ -810,9 +862,16 @@ void SV_PlayerPhysics()
 		maxspd_mod = cvar("g_nexball_basketball_carrier_speed");
 	}
     
+    float haste = Buffs_BuffPower(self, BUFF_HASTE);
+    if(haste)
+        maxspd_mod *= 1 + (cvar("g_buffs_haste_move_rate") - 1) * haste;
+    
+    if(self.hg_stealth)
+        maxspd_mod *= cvar("g_nadgets_cloak_movespeed");
+    
     if(g_dodging)
         dodging_PlayerPhysics();
-    freezetag_PlayerPhysics();
+    Freeze_Hook_PlayerPhysics();
 
 	swampspd_mod = 1;
 	if(self.in_swamp) {
@@ -842,8 +901,11 @@ void SV_PlayerPhysics()
 		maxspd_mod = self.spectatorspeed;
 	}
 
+    if(time < self.hg_plasmalock)
+        maxspd_mod = 0;
+
 	spd = max(sv_maxspeed, sv_maxairspeed) * maxspd_mod * swampspd_mod;
-	if(self.speed != spd)
+	if(self.speed != spd) if(!isbait)
 	{
 		self.speed = spd;
 		temps = ftos(spd);
@@ -1009,7 +1071,7 @@ void SV_PlayerPhysics()
 			PM_Accelerate(wishdir, wishspeed, wishspeed, sv_accelerate*maxspd_mod, 1, 0);
 		}
 	}
-	else if((self.items & IT_JETPACK) && self.BUTTON_HOOK && (!cvar("g_jetpack_fuel") || self.ammo_fuel >= 0.01 || self.items & IT_UNLIMITED_WEAPON_AMMO) && (!g_freezetag || !self.freezetag_frozen))
+	else if((self.items & IT_JETPACK) && self.BUTTON_HOOK && (!cvar("g_jetpack_fuel") || self.ammo_fuel >= 0.01 || self.items & IT_UNLIMITED_WEAPON_AMMO) && (!g_freeze || !self.frozen))
 	{
 		//makevectors(self.v_angle_y * '0 1 0');
 		makevectors(self.v_angle);
@@ -1111,7 +1173,7 @@ void SV_PlayerPhysics()
 	else if (self.flags & FL_ONGROUND)
 	{
 		// we get here if we ran out of ammo
-		if((self.items & IT_JETPACK) && self.BUTTON_HOOK && !(buttons_prev & 32) && (!g_freezetag || !self.freezetag_frozen))
+		if((self.items & IT_JETPACK) && self.BUTTON_HOOK && !(buttons_prev & 32) && (!g_freeze || !self.frozen))
 			sprint(self, "You don't have any fuel for the ^2Jetpack\n");
 
 		// walking
@@ -1244,12 +1306,4 @@ void SV_PlayerPhysics()
 
 	self.lastflags = self.flags;
 	self.lastclassname = self.classname;
-
-	if(!sv_speedaward_ownaccel)
-	{
-		float myvel = vlen(self.velocity);
-		if(myvel > highest_velocity)
-		if(isplayer)
-			UpdateHighestVelocity(myvel, self);
-	}
 };

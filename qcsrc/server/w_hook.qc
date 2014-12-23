@@ -172,7 +172,7 @@ float w_hook(float req)
 						{
 							self.ammo_fuel = 0;
 							self.hook_state |= HOOK_REMOVING;
-							W_SwitchWeapon_Force(self, w_getbestweapon(self));
+							W_SwitchWeapon_OutOfAmmo(self);
 						}
 					}
 				}

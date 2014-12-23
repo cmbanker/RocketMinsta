@@ -38,7 +38,7 @@ void W_Uzi_Attack (float deathtype)
 		fireBallisticBullet(w_shotorg, w_shotdir, cvar("g_balance_uzi_sustained_spread"), cvar("g_balance_uzi_speed"), 5, cvar("g_balance_uzi_sustained_damage"), 0, cvar("g_balance_uzi_sustained_force"), deathtype, 0, 1, cvar("g_balance_uzi_bulletconstant"));
 	endFireBallisticBullet();
 
-	pointparticles(particleeffectnum("uzi_muzzleflash"), w_shotorg, w_shotdir * 1000, 1);
+	pointparticles(particleeffectnum("uzi_muzzleflash"), w_shotorg_visual, w_shotdir_visual * 1000, 1);
 
 	// muzzle flash for 1st person view
 	flash = spawn();
@@ -68,7 +68,7 @@ void uzi_fire1_02()
 	{
 		if (!weapon_action(self.weapon, WR_CHECKAMMO2))
 		{
-			W_SwitchWeapon_Force(self, w_getbestweapon(self));
+			W_SwitchWeapon_OutOfAmmo(self);
 			w_ready();
 			return;
 		}

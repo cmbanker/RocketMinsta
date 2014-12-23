@@ -2,3 +2,8 @@
 .float armorvalue;
 .float sameteam;
 .float the_entnum;
+
+.float sn_lastdraw;
+.float sn_forcefrozen;
+.float sn_culled;
+

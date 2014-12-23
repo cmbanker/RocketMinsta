@@ -26,7 +26,7 @@ void W_Shotgun_Attack (void)
 	if not(self.items & IT_UNLIMITED_WEAPON_AMMO)
 		self.ammo_shells = self.ammo_shells - ammoamount;
 
-	pointparticles(particleeffectnum("shotgun_muzzleflash"), w_shotorg, w_shotdir * 1000, cvar("g_balance_shotgun_primary_ammo"));
+	pointparticles(particleeffectnum("shotgun_muzzleflash"), w_shotorg_visual, w_shotdir_visual * 1000, cvar("g_balance_shotgun_primary_ammo"));
 
 	// casing code
 	if (cvar("g_casings") >= 1)
@@ -70,7 +70,7 @@ void W_Shotgun_Attack2 (void)
 	if not(self.items & IT_UNLIMITED_WEAPON_AMMO)
 		self.ammo_shells = self.ammo_shells - ammoamount;
 
-	pointparticles(particleeffectnum("shotgun_muzzleflash"), w_shotorg, w_shotdir * 1000, cvar("g_balance_shotgun_secondary_ammo"));
+	pointparticles(particleeffectnum("shotgun_muzzleflash"), w_shotorg_visual, w_shotdir_visual * 1000, cvar("g_balance_shotgun_secondary_ammo"));
 
 	// casing code
 	if (cvar("g_casings") >= 1)

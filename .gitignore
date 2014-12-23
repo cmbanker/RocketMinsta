@@ -13,3 +13,5 @@ release/*
 c_*.pk3dir/*
 pkgcache/*
 !pkgcache/.*
+build/*
+*~

@@ -1,0 +1,5 @@
+
+float g_buffs_enabled;
+
+void Buffs_Model_Set(entity ment, float thebuffs);
+void Buffs_Model_Read(void);

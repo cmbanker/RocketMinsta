@@ -574,6 +574,26 @@ void make_mapinfo_Think()
 	}
 }
 
+.float ispicked;
+
+void GotoMap_f_delayed(void) {
+    print(GotoMap(self.netname), "\n");
+    strunzone(self.netname);
+    remove(self);
+}
+
+void GotoMap_f(string m, float d) {
+    if(!d) {
+        print(GotoMap(m), "\n");
+        return;
+    }
+    
+    entity e = spawn();
+    e.netname = strzone(m);
+    e.think = GotoMap_f_delayed;
+    e.nextthink = time + d;
+}
+
 void GameCommand(string command)
 {
 	float argc;
@@ -642,22 +662,22 @@ void GameCommand(string command)
 		return;
 	}
 
-	if(argv(0) == "gotomap") if(argc >= 2)
-	{
-		// might fail but screw it
-		if(argc > 2)
-		{
-			localcmd("gametype ", argv(2), "\n");
-			gametypetoset = gametype_Name_to_ID(argv(2));
-		}
-		
-		print(GotoMap(argv(1)), "\n");
-		return;
-	}
+    if(argv(0) == "gotomap") if(argc >= 2)
+    {
+        if(argc > 2) {
+            localcmd("gametype ", argv(2), "\n");
+            GotoMap_f(argv(1), 0.2);
+        } else {
+            GotoMap_f(argv(1), 0);
+        }
+        
+        return;
+    }
 
 	if(argv(0) == "gametype" || argv(0) == "forcegametype") if(argc == 2)
 	{
 		float t, tsave;
+        
 		s = argv(1);
 		s = NormalizeGametypeName(s);
 		
@@ -671,19 +691,26 @@ void GameCommand(string command)
 		tsave = game;
 		if(t)
 		{
-			//MapInfo_SwitchGameType(t);
-			gametype_Set(gametype_Name_to_ID(s));
-			MapInfo_FilterGametype(gametype_ID_to_MapID(game), MapInfo_CurrentFeatures(), MapInfo_RequiredFlags(), MapInfo_ForbiddenFlags(), 0);
-			
-			if(MapInfo_count > 0) {
-				bprint("Game type successfully switched to ", s, "\n");
-			} else if(argv(0) == "forcegametype") {
-				bprint("Not map found for ", s ,", switch forced!\n");
-			} else {
-				bprint("Cannot use this game type: no map for it found\n");
-				gametype_Set(tsave);
-				MapInfo_FilterGametype(gametype_ID_to_MapID(game), MapInfo_CurrentFeatures(), MapInfo_RequiredFlags(), MapInfo_ForbiddenFlags(), 0);
-			}
+            if(time > 1) {
+                cvar_set("_sv_rm_nextgametype", s);
+                bprint("The gametype will be switched to ", gametype_Name_to_LongName(s), " on next map\n");
+                localcmd("\nsv_hook_rmcustom_gameswitch ", s, ";");
+            } else {
+                //MapInfo_SwitchGameType(t);
+                gametype_Set(gametype_Name_to_ID(s));
+                MapInfo_FilterGametype(gametype_ID_to_MapID(game), MapInfo_CurrentFeatures(), MapInfo_RequiredFlags(), MapInfo_ForbiddenFlags(), 0);
+                
+                if(MapInfo_count > 0) {
+                    bprint("Game type successfully switched to ", s, "\n");
+                } else if(argv(0) == "forcegametype") {
+                    bprint("Not map found for ", s ,", switch forced!\n");
+                } else {
+                    bprint("Cannot use this game type: no map for it found\n");
+                    error(ftos(game));
+                    gametype_Set(tsave);
+                    MapInfo_FilterGametype(gametype_ID_to_MapID(game), MapInfo_CurrentFeatures(), MapInfo_RequiredFlags(), MapInfo_ForbiddenFlags(), 0);
+                }
+            }
 		}
 		else
 			bprint("Game type switch to ", s, " failed: this type does not exist!\n");
@@ -1155,14 +1182,8 @@ void GameCommand(string command)
 		{
 			e.health = max(e.health, 100);
 			
-			if(g_freezetag)
-			{
-				local entity oldself;
-				oldself = self;
-				self = e;
-				freezetag_Unfreeze(world);
-				self = oldself;
-			}
+			if(g_freeze)
+				Freeze_UnfreezePlayer(e);
 		}
         
         if(g_jailbreak) {
@@ -1240,7 +1261,80 @@ void GameCommand(string command)
 		
 		FOR_EACH_CLIENT(client)
 			stuffcmd(client, strcat("connect ", s,"\n"));
+        return;
 	}
+    
+    if(argv(0) == "randomize_buffs") {
+        if(g_buffs)
+            Buffs_Randomize(world, TRUE);
+        return;
+    }
+    
+    if(argv(0) == "pickcaptains") {
+        float t = TeamCount_TotalTeams();
+        for(i = 0; i < t; ++i) {
+            RandomSelection_Init();
+            FOR_EACH_REALCLIENT(e) if(e.ispicked != time)
+                RandomSelection_Add(e, 0, string_null, 1, 1);
+            if(RandomSelection_chosen_ent) {
+                RandomSelection_chosen_ent.ispicked = time;
+                bprint("\{1}", ColoredTeamName(Team_FromIndex(i)), " ^7captain: ^3", RandomSelection_chosen_ent.netname, "\n");
+            }
+        }
+        return;
+    }
+    
+    if(argv(0) == "balanceteams") {
+        bprint("\x01^3* Teams will be automatically rebalanced after this round.\n");
+        teamcount_balancenext = TRUE;
+        return;
+    }
+    
+    if(argv(0) == "firetest") {
+        Fire_AddDamage(edict_num(stof(argv(1))), edict_num(stof(argv(2))), stof(argv(3)), stof(argv(4)), DEATH_IGNITE);
+        return;
+    }
+
+    if(argv(0) == "netmusic" || argv(0) == "radio_play") {
+    	Radio_Play(argv(1), argv(2), (argv(3) == "loop"));
+    	return;
+    }
+    
+    if(argv(0) == "stopmusic" || argv(0) == "radio_stop") {
+    	Radio_Stop();
+    	return;
+    }
+
+    if(argv(0) == "radio_preload") {
+    	Radio_Preload(argv(1));
+    	return;
+    }
+
+    if(argv(0) == "radio_queue") {
+    	Radio_Queue(argv(1), argv(2), stof(argv(3)), uri_unescape(argv(4)));
+    	return;
+    }
+
+    if(argv(0) == "radio_queue_skip") {
+    	Radio_Queue_Skip();
+    	return;
+    }
+
+    if(argv(0) == "radio_queue_restart") {
+    	Radio_Queue_PlayFirst();
+    	return;
+    }
+
+    if(argv(0) == "hg_bonustest") {
+        HG_GiveBonus(edict_num(stof(argv(1))), stof(argv(2)), stof(argv(3)), "hg_bonustest called", FALSE);
+        return;
+    }
+
+    if(argv(0) == "dprmstats") {
+        FOR_EACH_REALCLIENT(e)
+            print("#", ftos(num_for_edict(e)), " ^3", e.netname, "^7: ", ((e.client_dprmversion >= DPRM_MINVERSION)? "^2" : "^1"), ftos(e.client_dprmversion), "\n");
+        return;
+    }
 
 	print("Invalid command. For a list of supported commands, try sv_cmd help.\n");
 }

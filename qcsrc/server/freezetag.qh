@@ -1,13 +1,3 @@
-float g_freezetag;
-.float freezetag_frozen;
-.float freezetag_revive_progress;
-entity frag_inflictor;
-entity frag_attacker;
-entity frag_target;
-float sys_frametime;
-void freezetag_CheckWinner();
-.float freezetag_meltprogress;
-.float freezetag_freezetime;
-.float rev_finished;
-.float revivals_row;
+
 float ft_teams;
+void FreezeTag_CheckWinner(void);

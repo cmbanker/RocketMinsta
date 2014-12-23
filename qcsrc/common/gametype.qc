@@ -35,6 +35,7 @@ float gametype_GetMenu ()
 	if(cvar("g_prec"))             return GAME_PRECIOUS;
 //	if(cvar("g_inf"))              return GAME_INFECTION;
 	if(cvar("g_jailbreak"))        return GAME_JAILBREAK;
+    if(cvar("g_clanarena"))        return GAME_CLANARENA;
 	if(cvar("g_no"))               return GAME_NOTHING;
 	return 0;
 }
@@ -63,6 +64,7 @@ void gametype_SetMenu (float l_id)
 	cvar_set_ifeq(l_id, "g_prec",             GAME_PRECIOUS);
 //	cvar_set_ifeq(l_id, "g_inf",              GAME_INFECTION);
 	cvar_set_ifeq(l_id, "g_jailbreak",        GAME_JAILBREAK);
+    cvar_set_ifeq(l_id, "g_clanarena",        GAME_CLANARENA);
 	cvar_set_ifeq(l_id, "g_no",               GAME_NOTHING);
 }
 
@@ -131,6 +133,9 @@ float gametype_Extrapolate ()
 	if(cvar("g_jailbreak") || g_jailbreak) {
 		if(game_new) return 0;
 		game_new = GAME_JAILBREAK; }
+    if(cvar("g_clanarena") || g_clanarena) {
+        if(game_new) return 0;
+        game_new = GAME_CLANARENA; }
 	if(cvar("g_no") || g_no) {
 		if(game_new) return 0;
 		game_new = GAME_NOTHING; }
@@ -204,6 +209,9 @@ void gametype_Set (float gametype)
 		case GAME_JAILBREAK:
 			cvar_set("g_jailbreak", "1"); g_jailbreak = 1;
 			break;
+        case GAME_CLANARENA:
+            cvar_set("g_clanarena", "1"); g_clanarena = 1;
+            break;
 		case GAME_NOTHING:
 			cvar_set("g_no", "1"); g_no = 1;
 			break;
@@ -235,6 +243,7 @@ void gametype_Reset ()
 	cvar_set("g_prec",             "0"); g_prec             = 0;
 	cvar_set("g_inf",              "0"); g_inf              = 0;
 	cvar_set("g_jailbreak",        "0"); g_jailbreak        = 0;
+    cvar_set("g_clanarena",        "0"); g_clanarena        = 0;
 	cvar_set("g_no",               "0"); g_no               = 0;
 
 	cvar_set("gamecfg", "0");
@@ -269,6 +278,7 @@ float gametype_ID_to_MapID (float l_gametype)
 		case GAME_PRECIOUS:         return MAPINFO_TYPE_DEATHMATCH;
 //		case GAME_INFECTION:        return MAPINFO_TYPE_DEATHMATCH;
 		case GAME_JAILBREAK:        return MAPINFO_TYPE_JAILBREAK;
+        case GAME_CLANARENA:        return MAPINFO_TYPE_DEATHMATCH;
 		case GAME_NOTHING:          return MAPINFO_TYPE_DEATHMATCH;
 		case GAME_ALL:              return MAPINFO_TYPE_ALL;
 		default:                    return 0;
@@ -293,6 +303,7 @@ float gametype_MapID_to_ID (float l_maptype)
 		case MAPINFO_TYPE_NEXBALL:         return GAME_NEXBALL;
 		case MAPINFO_TYPE_CTS:             return GAME_CTS;
 		case MAPINFO_TYPE_JAILBREAK:       return GAME_JAILBREAK;
+        case MAPINFO_TYPE_CLANARENA:       return GAME_CLANARENA;
 		case MAPINFO_TYPE_ALL:             return GAME_ALL;
 		default:                           return 0;
 	}
@@ -320,6 +331,7 @@ float gametype_Name_to_ID (string l_typename)
 	else if(typename == "prec"    ) return GAME_PRECIOUS;
 //	else if(typename == "inf"     ) return GAME_INFECTION;
 	else if(typename == "jb"      ) return GAME_JAILBREAK;
+    else if(typename == "ca"      ) return GAME_CLANARENA;
 	else if(typename == "no"      ) return GAME_NOTHING;
 	else if(typename == "all"     ) return GAME_ALL;
 	else                            return 0;
@@ -348,6 +360,7 @@ string gametype_ID_to_Name (float l_gametype)
 		case GAME_PRECIOUS:         return "prec";
 //		case GAME_INFECTION:        return "inf";
 		case GAME_JAILBREAK:        return "jb";
+        case GAME_CLANARENA:        return "ca";
 		case GAME_NOTHING:          return "no";
 		default:                    return "";
 	}
@@ -376,6 +389,7 @@ string gametype_ID_to_LongName (float l_gametype)
 		case GAME_PRECIOUS:         return "Precious";
 //		case GAME_INFECTION:        return "Infection";
 		case GAME_JAILBREAK:        return "Jailbreak";
+        case GAME_CLANARENA:        return "Clan Arena";
 		case GAME_NOTHING:          return "Nothing";
 		case GAME_ALL:              return "All";
 		default:                    return "Unknown";
@@ -442,6 +456,8 @@ string gametype_Name_to_Name (string typename)
 		*/
 		case "jb": case "jailbreak": case "jbreak": case "jail": case "Jailbreak":
 			return "jb";
+        case "ca": case "clanarena": case "teamlms": case "tlms":
+            return "ca";
 		case "no": case "Nothing":
 		case "nothing": case "none":
 			return "no";
@@ -475,7 +491,9 @@ string gametype_Name_to_Description(string typename) {
 			return "Frag the enemy team to send them into a jail!\nCapture their controlpoint to release your imprisoned teammates.\nLock all of your opponents to win the round.";
 		case "prec":
 			return "Deathmatch-like gametype.\nYou have to capture and hold the Precious rune in order to gain frag points.";
-		
+		case "ca":
+            return "Team-based survival mode.\nYou Only Live Once (per round)!";
+        
 		// TODO: Describe other gametypes
 	}
 

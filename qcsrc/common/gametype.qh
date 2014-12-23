@@ -19,6 +19,7 @@ const float GAME_VIP              = 16;
 const float GAME_PRECIOUS         = 17;
 const float GAME_INFECTION        = 18;
 const float GAME_JAILBREAK        = 19;
+const float GAME_CLANARENA        = 20;
 const float GAME_NOTHING          = 91;
 const float GAME_ALL              = 92;
 

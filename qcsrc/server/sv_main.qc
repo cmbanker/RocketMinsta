@@ -125,7 +125,7 @@ void CreatureFrame (void)
 entity GetAFKKickVictim() {
 	entity v, e;
     
-	FOR_EACH_REALCLIENT(e) if(time - e.jointime > 30) if(e.is_away)
+	FOR_EACH_REALCLIENT(e) if(e.is_away) if(time - e.jointime > 30) if(time - e.afkmarktime > 10)
 		if(!v || v.parm_idlesince > e.parm_idlesince)
 			v = e;
 	
@@ -222,8 +222,8 @@ void StartFrame (void)
             g_dodging_delay = cvar("g_dodging_delay");
             g_dodging_ramp_time = cvar("g_dodging_ramp_time");
             
-            if(g_freezetag)
-                g_freezetag_dodging_frozen = cvar("g_freezetag_dodging_frozen");
+            if(g_freeze)
+                g_freezetag_dodging_frozen = Freeze_CVar("dodging_frozen");
         }
         
         g_balance_health_rotstable = cvar("g_balance_health_rotstable");
@@ -325,6 +325,14 @@ void StartFrame (void)
 		}
 	}
     
+    if(time >= game_starttime)
+    if(roundstate == ROUNDSTATE_PREGAME) {
+        roundstate = ROUNDSTATE_GAME;
+        TeamCount_RecountPlayers(TeamCount_AliveCheck_Null);
+    }
+    
+    Radio_Frame();
+
     //for(e = world; (e = findfloat(e, sub_target_used, TRUE));)
     //    e.sub_target_used = FALSE;
 }

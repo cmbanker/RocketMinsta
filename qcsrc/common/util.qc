@@ -1725,3 +1725,55 @@ float approach(float v, float t, float d) {
 	}
 	return v;
 }
+
+string FormatDamage(float f) {
+    string str;
+    float tmp;
+    
+    if(f >= 1000000)
+        str = ftos(rint(f * 0.00001) * 0.1);
+    else if(f >= 1000)
+        str = ftos(rint(f * 0.01) * 0.1);
+    else
+        str = ftos(rint(f));
+    
+    tmp = strstrofs(str, ".", 0);
+    if(tmp >= 0)
+        str = substring(str, 0, tmp + 2);
+    else if(f >= 1000)
+        str = strcat(str, ".0");
+    
+    if(!strstrofs(str, "-", 0))
+        str = substring(str, 1, strlen(str));
+    
+    return strcat(str, ((f >= 1000000)? "m" : ((f >= 1000)? "k" : "")));
+}
+
+#ifndef SVQC
+string FlagIcon(string cn) {
+    string i, s;
+    
+    if(cn == "")
+        return "gfx/flagicons/xx";
+    
+    i = strcat("gfx/flagicons/", cn);
+    float aframe = FlagIcon_Animate(cn);
+    if(aframe >= 0)
+        i = strcat(i, "-", ftos(fabs(rint(aframe))));
+    
+    if(drawgetimagesize(i) == '0 0 0')
+        return "gfx/flagicons/xx";
+    
+    return i;
+}
+#endif
+
+
+float fexists(string f) {
+    float fh;
+    fh = fopen(f, FILE_READ);
+    if (fh < 0)
+        return FALSE;
+    fclose(fh);
+    return TRUE;
+}

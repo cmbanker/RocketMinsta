@@ -549,7 +549,8 @@ void clickListBoxItemNexuizServerList(entity me, float i, vector where)
 
 void ServerList_StoreCN(string ip, string cn, entity me)
 {
-	db_put(me.ip2c_localdb, ip, cn);
+    if(cn != "")
+        db_put(me.ip2c_localdb, ip, cn);
 }
 
 string(string s) strtolower = #480;
@@ -605,7 +606,7 @@ void drawListBoxItemNexuizServerList(entity me, float i, vector absSize, float i
 		if(cn == "")
 		{
 			db_put(me.ip2c_localdb, ip, "--");
-			IP2C_Lookup(ip, ServerList_StoreCN, me);
+			IP2C_Lookup(ip, ServerList_StoreCN, 0, me);
 		}
 	}
 	else
@@ -625,7 +626,7 @@ void drawListBoxItemNexuizServerList(entity me, float i, vector absSize, float i
 	picsize = '16 11 0' * scale;
 
 	if(cn != "--")
-		draw_Picture_Unskinned(o, strcat("gfx/flags/", strtolower(cn)), '1 1 0', '1 1 1', 1);
+		draw_Picture_Unskinned(o, FlagIcon(strtolower(cn)), '1 1 0', '1 1 1', 1);
 	
 	o_x += picsize_x + me.realFontSize_x/2;
 	draw_Text(o, s, me.realFontSize, theColor, theAlpha, 0);

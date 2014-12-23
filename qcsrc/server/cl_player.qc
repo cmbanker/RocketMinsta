@@ -80,7 +80,7 @@ void WeaponStats_LogItem(float awep, float vwep, vector item)
 void WeaponStats_LogDamage(float awep, float vwep, float damage)
 {
 	if(damage < 0)
-		error("negative damage?");
+		print("negative damage?\n");
 	WeaponStats_LogItem(awep, vwep, '1 0 0' * damage);
 }
 void WeaponStats_LogKill(float awep, float vwep)
@@ -102,13 +102,13 @@ void WeaponStats_LogKill(float awep, float vwep)
 .entity pusher;
 .float pushltime;
 
-void CopyBody(float keepvelocity)
+entity CopyBody(float keepvelocity)
 {
-	local entity oldself;
+	entity body, oldself;
 	if (self.effects & EF_NODRAW)
-		return;
+		return world;
 	oldself = self;
-	self = spawn();
+	self = body = spawn();
 	self.enemy = oldself;
 	self.lip = oldself.lip;
 	self.colormap = oldself.colormap;
@@ -162,6 +162,7 @@ void CopyBody(float keepvelocity)
 	Drag_MoveDrag(oldself, self);
 
 	self = oldself;
+    return body;
 }
 
 float player_getspecies()
@@ -480,33 +481,208 @@ void DropPowerups(vector force) {
 void Boobs_Clear();
 void Boobs_DropAll(vector);
 
-void PlayerDamage (entity inflictor, entity attacker, float damage, float deathtype, vector hitloc, vector force)
+.float loscheck_found;
+.float loscheck_solid;
+
+float VisualDamage_CheckLOS(entity viewer, entity targ, vector hitloc) {
+    vector p1, p2;
+    float found;
+    
+    p1 = viewer.origin + viewer.view_ofs;
+    if(hitloc != '0 0 0')
+        p2 = hitloc;
+    else
+        p2 = targ.origin + targ.view_ofs;
+    
+    while(TRUE) {
+        traceline(p2, p1, FALSE, targ);
+        
+        if(trace_ent == viewer) {
+            found = TRUE;
+            break;
+        }
+        
+        if(!trace_ent || trace_fraction == 1)
+            break;
+        
+        trace_ent.loscheck_found = TRUE;
+        trace_ent.loscheck_solid = trace_ent.solid;
+        
+        if(trace_ent.solid == SOLID_BSP)
+            break;
+        
+        trace_ent.solid = SOLID_NOT;
+    }
+    
+    entity e = findfloat(world, loscheck_found, TRUE);
+    while(e) {
+        e.solid = e.loscheck_solid;
+        e.loscheck_found = FALSE;
+        e = findfloat(e, loscheck_found, TRUE);
+    }
+    
+    return found;
+}
+
+void VisualDamage(entity attacker, entity targ, float hdmg, float admg, float htype, vector hitloc) {
+    entity e;
+    vector org;
+    float found;
+    
+    if(targ.vdmg_ignorenext) {
+        targ.vdmg_ignorenext = FALSE;
+        return;
+    }
+    
+    if(!cvar("sv_showdamage"))
+        return;
+    
+    // note: obsolete
+    if(cvar("sv_hidedamage"))
+        return;
+    
+    if(teams_matter && attacker != targ && attacker.team == targ.team && !(targ.flags & FL_PROJECTILE && targ.owner == attacker))
+        htype |= VDMG_TYPE_TEAMHIT;
+    
+    if(htype & VDMG_TYPE_TEAMHIT && !hdmg && !admg)
+        return;
+    
+    if(attacker) {
+        if(cvar("sv_showdamage_checklos"))
+            found = VisualDamage_CheckLOS(attacker, targ, hitloc);
+        else
+            found = TRUE;
+    }
+    
+    if(hitloc == '0 0 0')
+        org = targ.origin;
+    else
+        org = hitloc;
+    
+    org = org + min(45, targ.maxs_z) * '0 0 1.5';
+    
+    FOR_EACH_REALCLIENT(e) {
+        entity check = e;
+        if(check.classname == "spectator")
+            check = check.enemy;
+        
+        if(cvar("sv_showdamage_global") || check == attacker || check == targ) {
+            float stype = htype;
+            
+            if(check == attacker) {
+                if(!found)
+                    continue;
+            } else if(check != targ) {
+                if(cvar("sv_showdamage_global_checklos"))
+                if(!VisualDamage_CheckLOS(check, targ, hitloc))
+                    continue;
+                
+                stype |= VDMG_TYPE_ALIEN;
+                if(teams_matter && check != targ && check.team == targ.team && !(targ.flags & FL_PROJECTILE && targ.owner == check))
+                    stype |= VDMG_TYPE_TEAMHIT;
+            }
+            
+            msg_entity = e;
+            WriteByte(MSG_ONE, SVC_TEMPENTITY);
+            WriteByte(MSG_ONE, TE_CSQC_VISUALDAMAGE);
+            WriteShort(MSG_ONE, hdmg * 10);
+            WriteShort(MSG_ONE, admg * 10);
+            
+            if(check == targ)
+                WriteByte(MSG_ONE, stype | VDMG_TYPE_TOSELF);
+            else {
+                WriteByte(MSG_ONE, stype);
+                WriteCoord(MSG_ONE, org_x);
+                WriteCoord(MSG_ONE, org_y);
+                WriteCoord(MSG_ONE, org_z);
+            }
+        }
+    }
+}
+
+void PlayerDamage(entity inflictor, entity attacker, float damage, float deathtype, vector hitloc, vector force)
 {
-	local float take, save, waves, sdelay, dh, da, j;
+	local float take, save, waves, sdelay, j;
 	vector v;
 	float valid_damage_for_weaponstats;
+    
+    float oh = self.health;
+    float oa = self.armorvalue;
+    
+    if(self != attacker)
+    if(!DEATH_ISSPECIAL(deathtype) || deathtype == DEATH_MEODP)
+    if(deathtype != DEATH_ARC)
+    if(deathtype != DEATH_HG_SHIELD)
+        Buffs_ArcDamage(self, attacker, damage, deathtype);
 
-	dh = max(self.health, 0);
-	da = max(self.armorvalue, 0);
+    if(damage) {
+        damage = Buffs_IgniteDamage(self, attacker, inflictor, damage, deathtype);
+        damage = Buffs_TenacityDamage(self, attacker, damage, deathtype);
+    	
+    	if(damage)
+        if(g_nadgets)
+        if(attacker.iscreature)
+        if(self.hg_shield) {
+            if(deathtype == DEATH_HG_TRANSLOC && cvar("g_nadgets_transloc_counters_shield"))
+                self.hg_shield = 0;
+            else if(deathtype != DEATH_HG_SHIELD && deathtype != DEATH_NOISE && deathtype != DEATH_ARC && deathtype != DEATH_HG_GG) {
+                vector offs = '0 0 1' * self.maxs_z*0.5;
+                float reflect = damage * cvar("g_nadgets_shield_damage_reflect") * self.hg_shieldpower;
+                float takefactor = 1 - (1 - cvar("g_nadgets_shield_damage_take")) * self.hg_shieldpower;
+                float absorb = damage * (1 - takefactor);
+                self.hg_shield_stored = min(cvar("g_nadgets_shield_damage_store_limit"), self.hg_shield_stored + damage * cvar("g_nadgets_shield_damage_store"));
+                damage *= takefactor;
+                
+                if(deathtype == DEATH_HG_TRANSLOC)
+                    reflect = 0;
+                else if(DEATH_ISHG(deathtype))
+                    reflect *= cvar("g_nadgets_shield_damage_reflect_hg");
+                
+                if(reflect) {
+                    FireRailgunBullet(self.origin+offs, attacker.origin+offs, reflect, 0, 0, 0, 0, 0, DEATH_HG_SHIELD);
+                    trailparticles(world, particleeffectnum("TE_TEI_G3YELLOW"), self.origin+offs, trace_endpos);
+                }
+                
+                self.hg_shieldhealth -= absorb;
+                if(self.hg_shieldhealth <= 0)
+                    self.hg_shield = 0;
+            }
+        }
+        
+        if(deathtype == HG_PLASMA_SHARD) {
+            if(time > inflictor.damage_nextarceffect) {
+                te_csqc_lightningarc(inflictor.origin, self.origin + '0 0 0.5' * self.maxs_z, FALSE, attacker.team);
+                inflictor.damage_nextarceffect = time + inflictor.hg_plasma_projdps_delay + 0.2 * (random() - 0.5);
+            }
+        }
 
-    if(damage)
-    if(g_handgrenades)
-    if(attacker.classname == "player")
-    if(self.hg_shield)
-    if(deathtype != DEATH_HG_SHIELD) {
-        vector offs = '0 0 1' * self.maxs_z*0.5;
-        float reflect = damage * cvar("g_handgrenades_shield_damage_reflect");
-        float absorb = damage * (1-cvar("g_handgrenades_shield_damage_take"));
-        damage *= cvar("g_handgrenades_shield_damage_take");
-        
-        if(DEATH_ISHG(deathtype))
-            reflect *= cvar("g_handgrenades_shield_damage_reflect_hg");
-        
-        FireRailgunBullet(self.origin+offs, attacker.origin+offs, reflect, 0, 0, 0, 0, 0, DEATH_HG_SHIELD);
-        trailparticles(world, particleeffectnum("TE_TEI_G3RED"), self.origin+offs, trace_endpos);
-        self.hg_shieldhealth -= absorb;
+        if(self.hg_stealth) if(time < self.hg_stealth_protectionexpiretime) {
+            damage *= cvar("g_nadgets_cloak_damagereduction_factor");
+        }
     }
 
+    W_CampingRifle_RegisterHitForHitstreak(attacker, deathtype);
+
+    if(time < self.hg_plasmalock)
+    if(deathtype != DEATH_NOISE)
+    if(deathtype != DEATH_TEAMCHANGE)
+    if(deathtype != DEATH_AUTOTEAMCHANGE)
+    if(deathtype != DEATH_KILL)
+    if(deathtype != DEATH_FALL)
+    if(deathtype != DEATH_DROWN)
+    if(deathtype != DEATH_ROT)
+    if(deathtype != DEATH_HURTTRIGGER) {
+        damage = 0;
+        force = '0 0 0';
+    }
+    
+    if(deathtype == HG_PLASMA_SHARD || deathtype == HG_PLASMA)
+        if(self.frozen || inflictor.hg_adept) if(self != attacker && (!teams_matter || IsDifferentTeam(self, attacker))) {
+            self.hg_plasmalock = time + cvar("g_nadgets_plasma_projectile_frozenlock") * Buffs_NadgetPower(attacker);
+            self.hg_plasmalock_owner = attacker;
+            te_csqc_lightningarc(inflictor.origin, hitloc, TRUE, attacker.team);
+        }
+    
 	if(!DEATH_ISSPECIAL(deathtype))
 	{
 		damage *= sqrt(bound(1.0, self.cvar_cl_handicap, 100.0));
@@ -544,23 +720,20 @@ void PlayerDamage (entity inflictor, entity attacker, float damage, float deatht
 	}
 	else
 		Violence_GibSplash_At(hitloc, force, 2, bound(0, damage, 200) / 16, self, attacker);
-
+    
 	if(g_arena)
 	if(numspawned < 2)
 		return;
 
-	if (!g_minstagib)
-	{
+    if(!g_minstagib) {
 		v = healtharmor_applydamage(self.armorvalue, cvar("g_balance_armor_blockpercent"), damage);
 		take = v_x;
 		save = v_y;
-	}
-	else
-	{
+	} else {
 		save = 0;
 		take = damage;
 	}
-
+    
 	if(sound_allowed(MSG_BROADCAST, attacker))
 	{
 		if (save > 10)
@@ -575,13 +748,56 @@ void PlayerDamage (entity inflictor, entity attacker, float damage, float deatht
 		Violence_GibSplash_At(hitloc, force * -0.1, 3, 1, self, attacker);
 	if (take > 100)
 		Violence_GibSplash_At(hitloc, force * -0.2, 3, 1, self, attacker);
-
+    
 	if (time > self.spawnshieldtime || cvar("g_spawnshieldmode"))
 	{
-		if (!(self.flags & FL_GODMODE))
-		{
-			self.armorvalue = self.armorvalue - save;
-			self.health = self.health - take;
+		if (!(self.flags & FL_GODMODE)) if(self.classname != "bait_body")
+        {
+            self.armorvalue = self.armorvalue - save;
+
+            float cdmg = min(self.health, take);
+            float rdmg = rint(cdmg);
+            float sameteam = (teams_matter && self.team == attacker.team);
+            float htype = VDMG_TYPE_HIT;
+            
+            if(deathtype & HITTYPE_HEADSHOT || deathtype == DEATH_MEODP)
+                htype |= VDMG_TYPE_CRIT;
+            
+            if(take >= self.health)
+                htype |= VDMG_TYPE_LETHAL;
+            
+            if(!g_minstagib) {
+            	vector vdloc = hitloc;
+
+            	if(deathtype == DEATH_HG_TRANSLOC)
+            		vdloc = vdloc + 0.5 * attacker.velocity;
+
+                VisualDamage(attacker, self, cdmg, save, htype, vdloc);
+            }
+
+            if(attacker != self)
+            if(!sameteam)
+            if(attacker.classname == "player") {
+                PlayerScore_Add(attacker, SP_DAMAGE, cdmg + save);
+                DamageTracker_RecordAndSend(attacker.dtrack_total, deathtype, cdmg + save, DTFLAG_DONE);
+                DamageTracker_RecordAndSend(self.dtrack_taken, deathtype, cdmg + save, DTFLAG_TAKEN);
+                
+                if(g_clanarena)
+                    PlayerScore_Add(attacker, SP_SCORE, (cdmg + save) * cvar("g_clanarena_score_damage"));
+                
+                Buffs_VampireDamage(self, attacker, cdmg, deathtype);
+                
+                if(g_vip) if(roundstate == ROUNDSTATE_GAME) if(ISVIP(self)) if(cdmg || save) {
+                    PlayerScore_Add(attacker, SP_SCORE, cdmg + save);
+                    hudflash_teamcolor_default_spec(attacker);
+                }
+            }
+            
+            self.health = self.health - take;
+            
+            if(self.dmg_jaildm && !self.jb_jaildm_aggressive)
+                self.health = max(1, self.health);  // the best way to win a fight is to avoid it
+            
 			// pause regeneration for 5 seconds
 			self.pauseregen_finished = max(self.pauseregen_finished, time + cvar("g_balance_pause_health_regen"));
 
@@ -624,9 +840,13 @@ void PlayerDamage (entity inflictor, entity attacker, float damage, float deatht
 		else
 			self.max_armorvalue += (save + take);
 	}
-	self.dmg_save = self.dmg_save + save;//max(save - 10, 0);
-	self.dmg_take = self.dmg_take + take;//max(take - 10, 0);
-	self.dmg_inflictor = inflictor;
+    
+    if(deathtype != DEATH_IGNITE) {
+        self.dmg_save = self.dmg_save + save;//max(save - 10, 0);
+        self.dmg_take = self.dmg_take + take;//max(take - 10, 0);
+    }
+	
+    self.dmg_inflictor = inflictor;
 
 	if(attacker == self)
 	{
@@ -652,93 +872,22 @@ void PlayerDamage (entity inflictor, entity attacker, float damage, float deatht
 	if(clienttype(attacker) == CLIENTTYPE_REAL)
 	if(self != attacker)
 	if(!DEATH_ISSPECIAL(deathtype))
+    if(!DEATH_ISHG(deathtype))
 	if(IsDifferentTeam(self, attacker))
 		valid_damage_for_weaponstats = 1;
 	
     DPS_Record(attacker, self, take);
     
-	// Print damage to players
-	local float olddamage, armordamage;
-	local entity targ;
-	targ = self;
-	olddamage = damage;
-	
-	if(!g_minstagib)
-	{
-		damage = dh - max(self.health, 0);
-		armordamage = da - max(self.armorvalue, 0);
-	
-		damage = max(0, damage);
-		armordamage = max(0, armordamage);
-	
-		if(attacker.classname == "player")
-		if(g_vip) if(vip_started) if(!vip_ended) if(ISVIP(targ))
-		{
-			PlayerScore_Add(attacker, SP_SCORE, damage * 0.1);
-			PlayerScore_Add(attacker, SP_SCORE, armordamage * 0.1);
-			
-			if(attacker != targ) if(damage || armordamage)
-				hudflash_teamcolor_default_spec(attacker);
-		}
-		
-		if(!cvar("sv_hidedamage")) if(self.health > 0) if not(g_freezetag && self.freezetag_frozen)
-		{
-			float i;
-			
-			for(i = 0; i < 2; i++)
-			{
-				local string dmgstring, wpnstring;
-				
-				// To-do: generate prints client-side, send all the crap through a tempentity
-				
-				if(i) // damage
-				{
-					if(!damage)
-						continue;
-					
-					dmgstring = ftos(rint(damage));
-				}
-				else //armor damage
-				{
-					if(!armordamage)
-						continue;
-					
-					dmgstring = strcat("^2(^7", ftos(rint(armordamage)), "^2)");
-				}
-				
-				wpnstring = strcat("^7", get_weaponinfo(DEATH_WEAPONOF(deathtype)).message);
-				if(!cvar("sv_extendfragmessages")) wpnstring = "";
-				
-				if(attacker.classname == "player") if(attacker != targ)
-				{
-					if(targ.netname)
-						centerprint_spec(attacker, strcat("\x01\x02", targ.netname, " ^3^x550 ^7", dmgstring, " ^x550^3^7 ", wpnstring));
-				}
-				
-				if(attacker.netname)
-				{
-					if(attacker == targ)
-						centerprint_spec(targ, strcat("\x01\x02", "^xFB0self ", "^x500^1 ^7", dmgstring, " ^1^x500 ", wpnstring));
-					else
-						centerprint_spec(targ, strcat("\x01\x02", attacker.netname, " ^x500^1 ^7", dmgstring, " ^1^x500^7 ", wpnstring));
-				}
-				else
-					centerprint_spec(targ, strcat("\x01\x02", "^x500^1 ^7", dmgstring, " ^1^x500\n"));
-				hudflash_spec(targ, '2 0.15 -1', HF_DEFAULT_TIME, HF_DEFAULT_INT, HF_DEFAULT_ALPHA);
-			}
-		}
-		damage = olddamage;
-	}
-	
 	if(valid_damage_for_weaponstats)
-	{
-		dh = dh - max(self.health, 0);
-		da = da - max(self.armorvalue, 0);
-		WeaponStats_LogDamage(DEATH_WEAPONOF(deathtype), self.weapon, dh + da);
-	}
+		WeaponStats_LogDamage(DEATH_WEAPONOF(deathtype), self.weapon, (oh - self.health) + (oa - self.armorvalue));
 
 	if (self.health < 1)
 	{
+        if(g_freeze && self.frozen || g_jailbreak && self.jb_isprisoned) if(deathtype == DEATH_NOISE) {
+            self.health = 1;
+            return;
+        }
+        
 		float defer_ClientKill_Now_TeamChange;
 		defer_ClientKill_Now_TeamChange = FALSE;
 
@@ -770,47 +919,53 @@ void PlayerDamage (entity inflictor, entity attacker, float damage, float deatht
 			}
 		}
 
-		if(!g_freezetag)
+        // become fully visible
+        self.alpha = 1;
+            
+		if(!g_freeze)
 		{
-			// become fully visible
-			self.alpha = 1;
 			// clear selected player display
 			ClearSelectedPlayer();
 			// throw a weapon
-			SpawnThrownWeapon (self.origin + (self.mins + self.maxs) * 0.5, self.switchweapon);
+            
+            if(!g_jailbreak)
+                SpawnThrownWeapon(self.origin + (self.mins + self.maxs) * 0.5, self.switchweapon);
 		}
 		
+        if(deathtype == HG_BAIT)
+        if(IsDifferentTeam(attacker, self))
+        if(Buffs_BuffPower(attacker, BUFF_ADEPT)) {
+            attacker.hg_ammo += 1;
+            HG_SetRegenTime(attacker, HG_RegenTime(attacker));
+        }
+
+        float removenadgets;
+        if(g_nadgets)
+            removenadgets = cvar("g_nadgets_remove_on_death");
+        
+        if(removenadgets > 1)
+            HG_RemoveAll(self);
+        
 		// print an obituary message
 		Obituary (attacker, inflictor, self, deathtype);
 		race_PreDie();
 		DropAllRunes(self);
 		
-		if(deathtype == DEATH_HURTTRIGGER && g_freezetag)
-		{
-			PutClientInServer();
-			count_alive_players(); // re-count players
-			freezetag_CheckWinner();
-			return;
-		}
-		
-		frag_attacker = attacker;
-		frag_inflictor = inflictor;
-		frag_target = self;
-		frag_force = force;
-		
-		prec_player_die(self);
-		
+        self.hg_bonus = 0;
+        self.hg_bonustype = HG_NORMAL;
+        self.hg_linker = world;
+        self.buffs = 0;
+        self.hg_stealth = 0;
+        self.fire_endtime = time;
+        
+		prec_player_die(self, attacker);
 		DropPowerups(force);
-		
 		sm_PlayerDies();
 		
-		if(freezetag_PlayerDies())
+		if(vip_PlayerDies(attacker, self, deathtype))
 			return;
 		
-		if(vip_PlayerDies(deathtype))
-			return;
-		
-		if(JB_PlayerDies())
+		if(JB_PlayerDies(attacker))
 			return;
 		
 		if(self == attacker)
@@ -840,6 +995,14 @@ void PlayerDamage (entity inflictor, entity attacker, float damage, float deatht
 			self.angles_z = 0;
 		}
 		
+        Buffs_MEODP_Point_Detach(self);
+        
+        if(Freeze_Hook_PlayerDies(attacker, force, deathtype))
+            return;
+        
+        if(removenadgets < 2)
+            HG_RemoveAll(self);
+        
 		Boobs_DropAll(force);
 		
 		// don't spin
@@ -928,80 +1091,33 @@ void PlayerDamage (entity inflictor, entity attacker, float damage, float deatht
             weapon_action(j, WR_RESETPLAYER);
 			ATTACK_FINISHED_FOR(self, j) = 0;
 		}
+        
+        CA_PlayerDies(attacker);
 	}
 }
 
-// sendflags use: 1 = origin, 2 = health/armor, 0x80 = same team (includes health), 4 = entity out of range/culled
-float SendEntity_ShowNames(entity to, float sendflags)
-{
-    WriteByte(MSG_ENTITY, ENT_CLIENT_SHOWNAMES);
-    WriteByte(MSG_ENTITY, num_for_edict(self.owner));
-
-    sendflags = sendflags & 127;
-    if(teams_matter && self.owner.team == to.team)
-        sendflags |= 128;
-    else
-        sendflags &~= 2;
-    WriteByte(MSG_ENTITY, sendflags);
-    if(sendflags & 1)
-    {
-        WriteShort(MSG_ENTITY, rint(self.origin_x));
-        WriteShort(MSG_ENTITY, rint(self.origin_y));
-        WriteShort(MSG_ENTITY, rint(self.origin_z));
-    }
-    if(sendflags & 2)
-    {
-        WriteByte(MSG_ENTITY, self.health);
-        WriteByte(MSG_ENTITY, self.armorvalue);
-    }
+float UpdateSelectedPlayer_isVisible(entity p) {
+    if(p.deadflag)
+        return FALSE;
+    
+    if(p.alpha < 0.4 && !(teams_matter && p.team == self.team))
+        return FALSE;
+    
     return TRUE;
-}
-
-const vector SHOWNAMES_ORIGIN_OFFSET = '0 0 48';
-void shownames_think()
-{
-    if(self.origin - SHOWNAMES_ORIGIN_OFFSET != self.owner.origin)
-    {
-        setorigin(self, self.owner.origin + SHOWNAMES_ORIGIN_OFFSET);
-        self.SendFlags |= 1;
-    }
-    if(self.health != bound(0, floor(self.owner.health), 255) || self.armorvalue != bound(0, floor(self.owner.armorvalue), 255))
-    {
-        self.health = bound(0, floor(self.owner.health), 255);
-        self.armorvalue = bound(0, floor(self.owner.armorvalue), 255);
-        self.SendFlags |= 2;
-    }
-    self.nextthink = time + cvar("sv_shownames_update");
-}
-
-float shownames_customize()
-{
-    if(self.owner != other) // no need to spam own coordinates
-    if(vlen(other.origin - self.origin) < autocvar_sv_shownames_cull_distance) // distance cull
-    if(self.owner.team == other.team || (self.owner.team != other.team && checkpvs(self.origin, other)))
-        return TRUE;
-
-    return FALSE;
-}
-
-float UpdateSelectedPlayer_countvalue(float v)
-{
-	return max(0, (v - 1.0) / 0.5);
 }
 
 // returns: -2 if no hit, otherwise cos of the angle
 // uses the global v_angle
-float UpdateSelectedPlayer_canSee(entity p, float mincosangle, float maxdist)
-{
+float UpdateSelectedPlayer_canSee(entity p, float mincosangle, float maxdist) {
 	vector so, d;
 	float c;
-
-	if(p == self)
-		return -2;
-
-	if(p.deadflag)
-		return -2;
-
+    
+    if(p == self)
+        return -2;
+    
+    if(!UpdateSelectedPlayer_isVisible(p))
+        return -2;
+        
 	so = self.origin + self.view_ofs;
 	d = p.origin - so;
 
@@ -1026,110 +1142,84 @@ float UpdateSelectedPlayer_canSee(entity p, float mincosangle, float maxdist)
 	return c;
 }
 
-void ClearSelectedPlayer()
-{
-	if(self.selected_player)
-	{
-		centerprint_expire(self, CENTERPRIO_POINT);
-		self.selected_player = world;
-		self.selected_player_display_needs_update = FALSE;
-	}
+void ClearSelectedPlayer() {
+    if(self.selected_player)
+        self.selected_player = world;
 }
 
-void UpdateSelectedPlayer()
-{
-	entity selected;
-	float selected_score;
-	selected = world;
-	selected_score = 0.95; // 18 degrees
+void UpdateSelectedPlayer() {
+    entity selected;
+    float selected_score;
+    selected = world;
+    selected_score = 0.95; // 18 degrees
 
-	if(!cvar("sv_allow_shownames"))
-		return;
+    if(!cvar("sv_allow_shownames"))
+        return;
 
-	if(clienttype(self) != CLIENTTYPE_REAL)
-		return;
+    if(clienttype(self) != CLIENTTYPE_REAL)
+        return;
 
-	if(self.cvar_cl_shownames == 0)
-		return;
+    if(self.cvar_cl_shownames == 0)
+        return;
 
-	if(self.cvar_cl_shownames == 1 && !teams_matter)
-		return;
+    if(self.cvar_cl_shownames == 1 && !teams_matter)
+        return;
 
-	makevectors(self.v_angle); // sets v_forward
+    makevectors(self.v_angle); // sets v_forward
 
-	// 1. cursor trace is always right
-	if(self.cursor_trace_ent && self.cursor_trace_ent.classname == "player" && !self.cursor_trace_ent.deadflag)
-	{
-		selected = self.cursor_trace_ent;
-	}
-	else
-	{
-		// 2. if we don't have a cursor trace, find the player which is least
-		//    mis-aimed at
-		entity p;
-		FOR_EACH_PLAYER(p)
-		{
-			float c;
-			c = UpdateSelectedPlayer_canSee(p, selected_score, 100); // 100 = 2.5 meters
-			if(c >= -1)
-			{
-				selected = p;
-				selected_score = c;
-			}
-		}
-	}
+    // 1. cursor trace is always right
+    if(self.cursor_trace_ent && (self.cursor_trace_ent.classname == "player" || self.cursor_trace_ent.classname == "bait_body") && UpdateSelectedPlayer_isVisible(self.cursor_trace_ent)) {
+        if(self.cursor_trace_ent.classname == "bait_body")
+            selected = self.cursor_trace_ent.aiment;
+        else
+            selected = self.cursor_trace_ent;
+    } else {
+        // 2. if we don't have a cursor trace, find the player which is least
+        //    mis-aimed at
+        entity p;
+        FOR_EACH_PLAYER(p) {
+            float c;
+            c = UpdateSelectedPlayer_canSee(p, selected_score, 100); // 100 = 2.5 meters
+            if(c >= -1) {
+                selected = p;
+                selected_score = c;
+            }
+        }
+    }
 
-	if(selected)
-	{
-		self.selected_player_display_timeout = time + self.cvar_scr_centertime;
-	}
-	else
-	{
-		if(time < self.selected_player_display_timeout)
-			if(UpdateSelectedPlayer_canSee(self.selected_player, 0.7, 200) >= -1) // 5 meters, 45 degrees
-				selected = self.selected_player;
-	}
+    if(selected)
+        self.selected_player_display_timeout = time + self.cvar_scr_centertime;
+    else {
+        if(time < self.selected_player_display_timeout)
+            if(UpdateSelectedPlayer_canSee(self.selected_player, 0.7, 200) >= -1) // 5 meters, 45 degrees
+                selected = self.selected_player;
+    }
 
-	if(selected)
-	{
-		if(selected == self.selected_player)
-		{
-			float save;
-			save = UpdateSelectedPlayer_countvalue(self.selected_player_count);
-			self.selected_player_count = self.selected_player_count + frametime;
-			if(save != UpdateSelectedPlayer_countvalue(self.selected_player_count))
-			{
-				string namestr, healthstr;
-				namestr = playername(selected);
-				if(teams_matter)
-				{
-					healthstr = ftos(floor(selected.health));
-					if(self.team == selected.team)
-					{
-						namestr = strcat(namestr, " (", healthstr, "%)");
-						self.selected_player_display_needs_update = TRUE;
-					}
-				}
-				//centerprint_spec(self, strcat("\x01", namestr));
-				bigprint_spec(self, "", strcat("\x01", namestr), 2);
-			}
-		}
-		else
-		{
-			ClearSelectedPlayer();
-			self.selected_player = selected;
-			self.selected_player_time = time;
-			self.selected_player_count = 0;
-			self.selected_player_display_needs_update = FALSE;
-		}
-	}
-	else
-	{
-		ClearSelectedPlayer();
-	}
+    if(selected) {
+        if(selected == self.selected_player) {
+            if(time > self.selected_player_next_update) {
+                string namestr;
+                namestr = playername(selected);
+                
+                if(teams_matter)
+                    if(self.team == selected.team)
+                        namestr = strcat(namestr, " (", ftos(floor(selected.health)), "h ", ftos(floor(selected.armorvalue)), "a)");
+                
+                bigprint_spec(self, "", strcat("\x01", namestr), self.cvar_scr_centertime);
+                self.selected_player_next_update = time + self.cvar_scr_centertime * 0.8;
+            }
+        }
+        else {
+            ClearSelectedPlayer();
+            self.selected_player = selected;
+            self.selected_player_next_update = 0;
+        }
+    }
+    else
+        ClearSelectedPlayer();
 
-	if(self.selected_player)
-		self.last_selected_player = self.selected_player;
+    if(self.selected_player)
+        self.last_selected_player = self.selected_player;
 }
 
 .float muted; // to be used by prvm_edictset server playernumber muted 1
@@ -1138,6 +1228,19 @@ void Say(entity source, float teamsay, entity privatesay, string msgin, float fl
 	string msgstr, colorstr, cmsgstr, namestr, fullmsgstr, sourcemsgstr, fullcmsgstr, sourcecmsgstr, privatemsgprefix;
 	float flood, privatemsgprefixlen, slashme;
 	entity head;
+	
+	
+    if(source.iscreature) {
+        float damg;
+        
+        if(teamsay)
+            damg = cvar("sv_chatdamage_team");
+        else if not(privatesay)
+            damg = cvar("sv_chatdamage");
+
+        if(damg)
+            Damage(source, source, source, damg, DEATH_NOISE, '0 0 0', normalize(randomvec()) * 200);
+    }
 
 	if(Ban_MaybeEnforceBan(source))
 		return;
@@ -1150,6 +1253,12 @@ void Say(entity source, float teamsay, entity privatesay, string msgin, float fl
 			slashme = TRUE;
 			msgin = strdecolorize(substring(msgin, 4, strlen(msgin) - 4));
 		}
+		if(!strstrofs(msgin, "/r ", 0)) {
+			if(source.lasttell){
+				privatesay = source.lasttell;
+				msgin = substring(msgin, 3, strlen(msgin) - 3);
+			}
+		}
 	}
 
 	msgin = formatmessage(msgin);
@@ -1157,7 +1266,7 @@ void Say(entity source, float teamsay, entity privatesay, string msgin, float fl
 	if(msgin == "")
 		return;
 
-	if(source.classname != "player")
+	if(source.classname != "player" && !source.jb_specteam)
 		colorstr = "^0"; // black for spectators
 	else if(teams_matter)
 		colorstr = Team_ColorCode(source.team);
@@ -1188,6 +1297,7 @@ void Say(entity source, float teamsay, entity privatesay, string msgin, float fl
 		namestr = source.netname;
 
 	if(privatesay) {
+		privatesay.lasttell = source;
 		msgstr = strcat("\{1}\{13}* ^3", namestr, "^3 tells you: ^7");
 		privatemsgprefixlen = strlen(msgstr);
 		msgstr = strcat(msgstr, msgin);
@@ -1297,14 +1407,16 @@ void Say(entity source, float teamsay, entity privatesay, string msgin, float fl
 	}
 
 	if(!privatesay)
-	if(source.classname != "player")
+	if(source.classname != "player" && !source.jb_specteam)
 	{
 		if(teamsay || (cvar("g_chat_nospectators") == 1) || (cvar("g_chat_nospectators") == 2 && !inWarmupStage))
 			teamsay = -1; // spectators
 	}
 
-	if(flood)
-		print("NOTE: ", playername(source), "^7 is flooding.\n");
+    if(flood)
+        print("NOTE: ", playername(source), "^7 is flooding.\n");
+    else if(!teamsay && !privatesay)
+        IRC_Announce_PlayerChat(source, msgin);
 
 	// build sourcemsgstr by cutting off a prefix and replacing it by the other one
 	if(privatesay)
@@ -1355,7 +1467,7 @@ void Say(entity source, float teamsay, entity privatesay, string msgin, float fl
 		sprint(source, sourcemsgstr);
 		if(sourcecmsgstr != "")
 			centerprint(source, sourcecmsgstr);
-		FOR_EACH_REALPLAYER(head) if(head.team == source.team)
+		FOR_EACH_REALCLIENT(head) if(head.classname == "player" || head.jb_specteam) if(head.team == source.team)
 			if(head != source)
 			{
 				sprint(head, msgstr);
@@ -1366,7 +1478,7 @@ void Say(entity source, float teamsay, entity privatesay, string msgin, float fl
 	else if(teamsay < 0)
 	{
 		sprint(source, sourcemsgstr);
-		FOR_EACH_REALCLIENT(head) if(head.classname != "player")
+		FOR_EACH_REALCLIENT(head) if(head.classname != "player" && !head.jb_specteam)
 			if(head != source)
 				sprint(head, msgstr);
 	}

@@ -134,6 +134,8 @@ float bot_shouldattack(entity e)
 		return FALSE;
 	if(e.flags & FL_NOTARGET)
 		return FALSE;
+    if(e.hg_stealthalpha > 0.8)
+        return FALSE;
 	return TRUE;
 };
 

@@ -34,7 +34,7 @@ void restartAnnouncer_Think() {
 		//gamestart_fadetime = time + 0.5;
 		//bigprint(strcat("Game starts in ", ftos(countdown_rounded)), "", 0.5);
 		bigprint(" ", "", 1);
-		bigprint(strcat("Game starts in: ", ftos(countdown_rounded)), "", 1);
+		bigprint(strcat(strcat(gametype_ID_to_LongName(gametype)), " starts in: ", ftos(countdown_rounded)), "", 1);
 
 		if(countdown_rounded <= 3 && countdown_rounded >= 1) {
 			sound(self, CHAN_VOICE, strcat("announcer/robotic/", ftos(countdown_rounded), ".wav"), VOL_BASEVOICE, ATTN_NONE);
@@ -466,3 +466,127 @@ void drawcolorcodedstring_aspect(vector pos, string text, vector sz, float alpha
 	SET_POS_AND_SZ_Y_ASPECT(TRUE)
 	drawcolorcodedstring(pos, text, '1 1 0' * sz_y, alpha, drawflag);
 }
+
+vector healthcolor(float x) {
+    vector c;
+    c_z = 0;
+    
+    x = 200 * (x / sv_nicehealth);
+    
+    if(x > 600) {
+        c_x = 0;
+        c_y = 1;
+        c_z = 1;
+    } else if(x > 200) {
+        c_x = 0;
+        c_y = 1;
+        c_z = (x-200)*0.0025;
+    } else if(x > 150) {
+        c_x = 0.4 - (x-150)*0.02 * 0.4;
+        c_y = 0.9 + (x-150)*0.02 * 0.1;
+    } else if(x > 100) {
+        c_x = 1 - (x-100)*0.02 * 0.6;
+        c_y = 1 - (x-100)*0.02 * 0.1;
+        c_z = 1 - (x-100)*0.02;
+    } else if(x > 50) {
+        c_x = 1;
+        c_y = 1;
+        c_z = 0.2 + (x-50)*0.02 * 0.8;  
+    } else if(x > 20) {
+        c_x = 1;
+        c_y = (x-20)*90/27/100;
+        c_z = (x-20)*90/27/100 * 0.2;
+    } else {
+        c_x = 1;
+        c_y = 0;
+    }
+    
+    return c;
+}
+
+float TeamNumber(float t, float d) {
+    if(!rm_teamlasers)
+        return d;
+    
+    switch(t) {
+        case COLOR_TEAM1:
+            return 1;
+        case COLOR_TEAM2:
+            return 2;
+        case COLOR_TEAM3:
+            return 3;
+        case COLOR_TEAM4:
+            return 4;
+        default:
+            return d;
+    }
+} 
+
+float rm_particleeffectnum(string p) {
+    float n = particleeffectnum(p);
+    
+    if(n < 0) {
+        print("ERROR: RM particle effect ", p, " missing! Will try to use a fallback. Try restarting the game to fix this problem.\n");
+        
+        switch(p) {
+            case "RM_HG_PLASMA_TEAM1":
+            case "RM_HG_PLASMA_TEAM2":
+            case "RM_HG_PLASMA_TEAM3":
+            case "RM_HG_PLASMA_TEAM4":
+                return particleeffectnum("TR_NEXUIZPLASMA");
+                
+            case "RM_HG_PLASMA_SHARD_EXPLODE_TEAM1":
+            case "RM_HG_PLASMA_SHARD_EXPLODE_TEAM2":
+            case "RM_HG_PLASMA_SHARD_EXPLODE_TEAM3":
+            case "RM_HG_PLASMA_SHARD_EXPLODE_TEAM4":
+                return particleeffectnum("electro_ballexplode");
+            
+            case "RM_HG_PLASMA_EXPLODE_TEAM1":
+            case "RM_HG_PLASMA_EXPLODE_TEAM2":
+            case "RM_HG_PLASMA_EXPLODE_TEAM3":
+            case "RM_HG_PLASMA_EXPLODE_TEAM4":
+                return particleeffectnum("hookbomb_explode");
+            
+            case "RM_HG_NAPALM_FIRE_TEAM1":
+            case "RM_HG_NAPALM_FIRE_TEAM2":
+            case "RM_HG_NAPALM_FIRE_TEAM3":
+            case "RM_HG_NAPALM_FIRE_TEAM4":
+                return particleeffectnum("fire_big");
+            
+            case "RM_HG_NAPALM_TRAIL_TEAM1":
+            case "RM_HG_NAPALM_TRAIL_TEAM2":
+            case "RM_HG_NAPALM_TRAIL_TEAM3":
+            case "RM_HG_NAPALM_TRAIL_TEAM4":
+                return particleeffectnum("firemine");
+            
+            case "RM_HEAL":
+                return particleeffectnum("electro_impact");
+            
+            case "RM_EXPLOSION":
+            case "RM_MEODP":
+                return particleeffectnum("rocket_explode");
+
+            case "RM_ZAPPER_TEAM1":
+            case "RM_ZAPPER_TEAM2":
+            case "RM_ZAPPER_TEAM3":
+            case "RM_ZAPPER_TEAM4":
+                return particleeffectnum("TR_NEXUIZPLASMA");
+
+            case "RM_LIGHTNING_TEAM1":
+            case "RM_LIGHTNING_TEAM2":
+            case "RM_LIGHTNING_TEAM3":
+            case "RM_LIGHTNING_TEAM4":
+                return -1;
+
+            case "RM_ZAPPER_MUZZLEFLASH_TEAM1":
+            case "RM_ZAPPER_MUZZLEFLASH_TEAM2":
+            case "RM_ZAPPER_MUZZLEFLASH_TEAM3":
+            case "RM_ZAPPER_MUZZLEFLASH_TEAM4":
+                return particleeffectnum("electro_muzzleflash");
+        }
+    }
+    
+    return n;
+}
+
+#define rm_particleeffectnum_team(p,t,d) rm_particleeffectnum(strcat(p "_TEAM", ftos(TeamNumber(t, d))))

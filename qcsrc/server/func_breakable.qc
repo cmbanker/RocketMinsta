@@ -83,6 +83,10 @@ void func_breakable_colormod()
 		self.colormod = '1 1 1';
 }
 
+void func_breakable_meodp_death(entity attacker, entity inflictor) {
+    Damage(self, inflictor, attacker, self.health, DEATH_MEODP, self.meodp_point.origin, '0 0 0');
+}
+
 void func_breakable_look_destroyed()
 {
 	local float floor_z;
@@ -115,6 +119,7 @@ void func_breakable_behave_destroyed()
 	self.state = 1;
 	setsize(self, '0 0 0', '0 0 0');
 	func_breakable_colormod();
+    Buffs_MEODP_Point_Detach(self);
 }
 
 void func_breakable_behave_restore()
@@ -125,6 +130,7 @@ void func_breakable_behave_restore()
 	self.state = 0;
 	setsize(self, self.mins_save, self.maxs_save);
 	func_breakable_colormod();
+    Buffs_MEODP_Point_Attach(self, func_breakable_meodp_death);
 }
 
 void func_breakable_destroyed()

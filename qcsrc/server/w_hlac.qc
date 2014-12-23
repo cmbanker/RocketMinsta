@@ -57,6 +57,7 @@ void W_HLAC_Attack (void)
 
 	setorigin (missile, w_shotorg);
 	setsize(missile, '0 0 0', '0 0 0');
+    PROJECTILE_FIX(missile)
 
     missile.velocity = (w_shotdir + randomvec() * spread) * cvar("g_balance_hlac_primary_speed");
 
@@ -101,6 +102,7 @@ void W_HLAC_Attack2f (void)
 
 	setorigin (missile, w_shotorg);
 	setsize(missile, '0 0 0', '0 0 0');
+    PROJECTILE_FIX2(missile)
 
     missile.velocity = (w_shotdir + randomvec() * spread) * cvar("g_balance_hlac_secondary_speed");
 
@@ -151,7 +153,7 @@ void HLAC_fire1_02()
 	{
 		if (!weapon_action(self.weapon, WR_CHECKAMMO1))
 		{
-			W_SwitchWeapon_Force(self, w_getbestweapon(self));
+			W_SwitchWeapon_OutOfAmmo(self);
 			w_ready();
 			return;
 		}

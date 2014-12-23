@@ -1,14 +1,20 @@
 
 float g_jailbreak_claim;
+float g_jailbreak_jail_deathmatch;
 typedef void() jb_torture_logic;
 
 void JB_Init();
+void JB_DelayedInit();
+void JB_NonJBInit();
 entity JB_ChooseJailSpawnpoint(float);
 float JB_GetEnemyTeamOf(float);
 void JB_CountPlayers();
-void JB_EndRound();
+void JB_EndRound(float);
 void JB_Frame();
+void JB_TeamSwap();
+void JB_TeamWins(float);
 float JB_TotalPlayersOnTeam(float);
+float JB_AlivePlayersOnTeam(float);
 void JB_PlayerPreThink();
 void JB_ActivateCamera(float, float);
 void JB_TorturePrisoners(float);
@@ -16,22 +22,28 @@ void JB_TorturePrisonersLater(float, float);
 void JB_Torture_Register(jb_torture_logic);
 void JB_Torture_RegisterAll();
 void JB_Torture_Start(entity);
-void JB_SetCamera(entity, entity, float);
-void JB_ClearCamera(entity);
-void JB_ClearCameraForAll();
+// void JB_SetCamera(entity, entity, float);
+// void JB_ClearCamera(entity);
+// void JB_ClearCameraForAll();
 void JB_HandleProjectile(entity);
 void JB_ControlPoint_Activate(entity);
 void JB_ControlPoint_Deactivate(entity, float);
 void JB_ControlPoint_UpdateCooldownProgress(entity);
 string JB_ControlPoint_Name(entity);
+float JB_JailIsOpen(float);
+float JB_AliveCheck(entity);
+void JB_JailSpectate();
+entity JB_JailSpec_CreateProxy();
+void JB_JailSpec_Proxy_CopyFields(entity, entity);
 
-float JB_PlayerDies();
+float JB_PlayerDies(entity);
 void JB_PlayerSpawn();
 void JB_RemovePlayer();
 
 .float jb_unlock_progress;
 .float jb_isprisoned;
-.float jb_jail_lasttouch;
+.float jb_isprisoned_prev;
+.float jb_jail_resettime;
 .float jb_prisontime;
 .float jb_cooldown;
 .float jb_cooldown_max;
@@ -43,21 +55,47 @@ void JB_RemovePlayer();
 .float jb_team_initial;
 .float jb_defendthink_next;
 .float jb_message;
+.float jb_jaildm_aggressive;
+.float jb_had_unlimited_ammo;
+.float jb_specteam;
 
 .entity jb_prisonedby;
 .entity jb_prisoned_by;
 .entity jb_saviour;
 .entity jb_waypoint;
-.entity jb_waypoint_defend;
 .entity jb_capturingplayer;
+.entity jb_jailspec_proxy;
 
-float jb_totalred, jb_totalblue;
 float jb_roundover;
+float jb_recount;
 
 entity jb_activecamera;
 entity jb_cp_first;
 entity jb_cp_last;
 .entity jb_cp_next;
+float jb_cp_num;
+
+entity jb_door_red_first;
+entity jb_door_red_last;
+entity jb_door_blue_first;
+entity jb_door_blue_last;
+.entity jb_door_next;
+
+.float jaildoormode;
+#define JAILDOORMODE_DEFAULT 0
+#define JAILDOORMODE_OPEN 1
+#define JAILDOORMODE_CLOSED 2
+
+#define OPENJAILS_LOCKED 0
+#define OPENJAILS_OPEN 1
+#define OPENJAILS_LOCKED_FORCE 2
+#define OPENJAILS_OPEN_FORCE 3
+
+#define JB_FIRSTDOOR(t) (((t) == COLOR_TEAM1)? jb_door_red_first : jb_door_blue_first)
+#define JB_SETFIRSTDOOR(t,d) if(t == COLOR_TEAM1) jb_door_red_first = d; else jb_door_blue_first = d
+#define JB_LASTDOOR(t) (((t) == COLOR_TEAM1)? jb_door_red_last : jb_door_blue_last)
+#define JB_SETLASTDOOR(t,d) if(t == COLOR_TEAM1) jb_door_red_last = d; else jb_door_blue_last = d
+#define JB_NEXTDOOR(e) ((e).jb_door_next)
 
 .float jb_torture_force;
 .float jb_torture_force_jitter;
@@ -65,7 +103,7 @@ entity jb_cp_last;
 .float jb_torture_delay_jitter;
 .float jb_torture_suggestedforce;
 
-#define JB_GAME_ACTIVE (warmup < time && !jb_roundover)
+#define JB_GAME_ACTIVE (roundstate == ROUNDSTATE_GAME) //(warmup < time && !jb_roundover)
 
 #define JB_PROJ_OWNERSTATE_UNDEFINED 0
 #define JB_PROJ_OWNERSTATE_IMPRISONED 1
@@ -74,3 +112,11 @@ entity jb_cp_last;
 #define JB_TEAM_NEUTRAL COLOR_TEAM3
 
 #define FOR_EACH_JB_CONTROLPOINT(e) for(e = jb_cp_first; e; e = e.jb_cp_next)
+#define FOR_EACH_JB_DOOR(e,t) for(e = JB_FIRSTDOOR(t); e; e = JB_NEXTDOOR(e))
+#define JB_SetCamera SetCamera
+#define JB_SetCameraWithAngles SetCameraWithAngles
+#define JB_ClearCamera ClearCamera
+#define JB_ClearCameraForAll ClearCameraForAll
+
+// TODO: cvar this
+#define JB_TORTURE_DURATION 15

@@ -15,22 +15,12 @@ dom_init();
 Note: The only teams who can use dom control points are identified by spawnfunc_dom_team entities (if none exist these default to red and blue and use only quake models/sounds).
 */
 
-#define DOMPOINTFRAGS frags
-#define FOR_EACH_CONTROLPOINT(v) for(v = world; (v = find(v, classname, "dom_controlpoint")) != world; )
-
-.float enemy_playerid;
-.entity sprite;
-.float captime;
-float tdom_maycap;
-.float pointupdatetime;
-float totalpoints, redpoints, bluepoints;
-
 void dom_recountpoints()
 {
     totalpoints = redpoints = bluepoints = 0;
 
     local entity e;
-    FOR_EACH_CONTROLPOINT(e)
+    FOR_EACH_DOM_CONTROLPOINT(e)
 	{
 		++totalpoints;
 		
@@ -48,14 +38,9 @@ void dom_recountpoints()
     }
 }
 
-void tdom_EndRound_Finalize() {
-	tdom_maycap = TRUE;
-}
-
 void tdom_EndRound()
 {
-	G_EndRound("Total Domination", 5, cvar("g_totaldomination_warmup"), dom_recountpoints, func_null, tdom_EndRound_Finalize);
-    tdom_maycap = FALSE;
+	G_EndRound(5, cvar("g_totaldomination_warmup"), dom_recountpoints, func_null, func_null);
 }
 
 void() dom_controlpoint_setup;
@@ -185,22 +170,8 @@ void dompoint_captured ()
 	SUB_UseTargets ();
 	self.delay = old_delay;
 	self.team = old_team;
-
-	switch(self.goalentity.team)
-	{
-		case COLOR_TEAM1:
-			WaypointSprite_UpdateSprites(self.sprite, "dom-red", "", "");
-			break;
-		case COLOR_TEAM2:
-			WaypointSprite_UpdateSprites(self.sprite, "dom-blue", "", "");
-			break;
-		case COLOR_TEAM3:
-			WaypointSprite_UpdateSprites(self.sprite, "dom-yellow", "", "");
-			break;
-		case COLOR_TEAM4:
-			WaypointSprite_UpdateSprites(self.sprite, "dom-pink", "", "");
-			break;
-	}
+    
+    WaypointSprite_UpdateTextColors(self.sprite, TeamColor(self.goalentity.team), '0 0 0', '0 0 0');
 	WaypointSprite_UpdateTeamRadar(self.sprite, RADARICON_DOMPOINT, colormapPaletteColor(self.goalentity.team - 1, 0));
 	WaypointSprite_Ping(self.sprite);
 
@@ -231,9 +202,19 @@ void dompointthink()
 	local float fragamt;
 
 	self.nextthink = time + 0.1;
-
-    if(time - self.pointupdatetime > 0.1)
-		self.freezetag_revive_progress = bound(0, self.freezetag_revive_progress - frametime * cvar("g_domination_capture_clearspeed"), 1);
+    
+    if(!self.sprite) {
+        waypoint_spawnforitem(self);
+        WaypointSprite_SpawnFixed(strcat("Point ", chr2str(str2chr("A", 0) + dom_numpts)), self.origin + '0 0 37', self, sprite);
+        WaypointSprite_UpdateTextColors(self.sprite, '0 1 1', '0 0 0', '0 0 0');
+        WaypointSprite_UpdateTeamRadar(self.sprite, RADARICON_DOMPOINT, '0 1 1');
+        ++dom_numpts;
+    }
+    
+    if(time - self.pointupdatetime > 0.15) {
+		self.dom_captureprogress = bound(0, self.dom_captureprogress - frametime * cvar("g_domination_capture_clearspeed"), 1);
+        self.dom_capturingplayer = world;
+    }
 	
 	//self.frame = self.frame + 1;
 	//if(self.frame > 119)
@@ -277,37 +258,54 @@ void dompointthink()
 void dompointtouch()
 {
 	local entity head;
-	if (other.classname != "player")
+    
+    if(time < game_starttime)
+        return;
+    
+	if(other.classname != "player")
 		return;
-	if (other.health < 1)
+	if(other.health < 1)
 		return;
-
+    if(g_freeze && other.frozen)
+        return;
+    
+    if(time - other.hg_stealthtime < cvar("g_nadgets_cloak_actiondelay"))
+        return;
+    
 	if(time < self.captime + 0.3)
 		return;
 
-	if(g_totaldomination)
-	if(!tdom_maycap)
-		return;
+    if(self.dom_capturingplayer && self.dom_capturingplayer != other)
+        return;
 
+	if(g_totaldomination)
+	if(roundstate != ROUNDSTATE_GAME)
+		return;
+    
 	// only valid teams can claim it
 	head = find(world, classname, "dom_team");
-	while (head && head.team != other.team)
+	while(head && head.team != other.team)
 		head = find(head, classname, "dom_team");
-	if (!head || head.netname == "" || head == self.goalentity)
+	if(!head || head.netname == "" || head == self.goalentity)
 		return;
 
-	self.freezetag_revive_progress = bound(0, self.freezetag_revive_progress + frametime * cvar("g_domination_capture_speed"), 1);
+    float rate = cvar("g_domination_capture_speed");
+    if(other.hg_shield)
+        rate *= cvar("g_nadgets_shield_progressrate");
+
+	self.dom_captureprogress = bound(0, self.dom_captureprogress + frametime * rate, 1);
 	self.pointupdatetime = time;
     other.pointupdatetime = time;
+    self.dom_capturingplayer = other;
 
-    other.freezetag_revive_progress = self.freezetag_revive_progress;
-	if(self.freezetag_revive_progress < 1)
+    other.dom_captureprogress = self.dom_captureprogress;
+	if(self.dom_captureprogress < 1)
 	{
-		//bprint(other.netname, "^7.freezetag_revive_progress = ", ftos(other.freezetag_revive_progress), "\n");
+		//bprint(other.netname, "^7.dom_captureprogress = ", ftos(other.dom_captureprogress), "\n");
 		return;
 	}
-	self.freezetag_revive_progress = 0;
-    other.freezetag_revive_progress = self.freezetag_revive_progress;
+	self.dom_captureprogress = 0;
+    other.dom_captureprogress = self.dom_captureprogress;
 
 	// delay capture
 
@@ -329,9 +327,11 @@ void dompointtouch()
 	if(head == world)
 		return;
 
+    /*
 	WaypointSprite_UpdateSprites(self.sprite, "dom-neut", "", "");
 	WaypointSprite_UpdateTeamRadar(self.sprite, RADARICON_DOMPOINT, '0 1 1');
 	WaypointSprite_Ping(self.sprite);
+    */
 
 	self.goalentity = head;
 	self.model = head.mdl;
@@ -348,7 +348,7 @@ float domination_PlayerPreThink()
 	DEPENDON_F(g_domination, 0)
 	
 	if(time - self.pointupdatetime >= 0.01)
-		self.freezetag_revive_progress = bound(0, self.freezetag_revive_progress - frametime * cvar("g_domination_capture_clearspeed"), 1);
+		self.dom_captureprogress = bound(0, self.dom_captureprogress - frametime * cvar("g_domination_capture_clearspeed"), 1);
 	
 	return 1;
 }
@@ -439,12 +439,11 @@ void dom_controlpoint_setup()
 	self.solid = SOLID_TRIGGER;
 	self.flags = FL_ITEM;
 	setsize(self, '-32 -32 -32', '32 32 32');
-	setorigin(self, self.origin + '0 0 20');
+	//setorigin(self, self.origin + '0 0 20');
 	droptofloor();
 
-	waypoint_spawnforitem(self);
-	WaypointSprite_SpawnFixed("dom-neut", self.origin + '0 0 32', self, sprite);
-	WaypointSprite_UpdateTeamRadar(self.sprite, RADARICON_DOMPOINT, '0 1 1');
+    if(self.sprite)
+        WaypointSprite_UpdateTextColors(self.sprite, '0 1 1', '0 0 0', '0 0 0');
 
     dom_recountpoints();
 };
@@ -656,7 +655,7 @@ void spawnfunc_dom_controlpoint()
 	self.reset = dom_controlpoint_setup;
 
 	if(!self.scale)
-		self.scale = 0.6;
+		self.scale = 1.0; //0.6;
 
 	//if(!self.glow_size)
 	//	self.glow_size = cvar("g_domination_point_glow");
@@ -695,14 +694,12 @@ void dom_spawnteam (string teamname, float teamcolor, string pointmodel, float p
 
 void dom_spawnpoint(vector org)
 {
-	local entity oldself;
+	entity oldself;
 	oldself = self;
 	self = spawn();
 	self.classname = "dom_controlpoint";
-	self.think = spawnfunc_dom_controlpoint;
-	self.nextthink = time;
-	spawnfunc_dom_controlpoint();
 	setorigin(self, org + '0 0 1' * (1 - self.mins_z + 24));
+	spawnfunc_dom_controlpoint();
 	self = oldself;
 };
 
@@ -720,23 +717,21 @@ void dom_spawnteams()
 	numteams = 2;
 	
 	// LordHavoc: edit this if you want to change defaults
-	dom_spawnteam("Red", COLOR_TEAM1-1, "models/domination/dom_red.md3", 0, "domination/claim.wav", "", "Red team has captured a control point");
-	dom_spawnteam("Blue", COLOR_TEAM2-1, "models/domination/dom_blue.md3", 0, "domination/claim.wav", "", "Blue team has captured a control point");
+	dom_spawnteam("Red", COLOR_TEAM1-1, "models/domination/dom_red_baseless.md3", 0, "domination/claim.wav", "", "Red team has captured a control point");
+	dom_spawnteam("Blue", COLOR_TEAM2-1, "models/domination/dom_blue_baseless.md3", 0, "domination/claim.wav", "", "Blue team has captured a control point");
 	if(numteams > 2)
-		dom_spawnteam("Yellow", COLOR_TEAM3-1, "models/domination/dom_yellow.md3", 0, "domination/claim.wav", "", "Yellow team has captured a control point");
+		dom_spawnteam("Yellow", COLOR_TEAM3-1, "models/domination/dom_yellow_baseless.md3", 0, "domination/claim.wav", "", "Yellow team has captured a control point");
 	if(numteams > 3)
-		dom_spawnteam("Pink", COLOR_TEAM4-1, "models/domination/dom_pink.md3", 0, "domination/claim.wav", "", "Pink team has captured a control point");
-	dom_spawnteam("", 0, "models/domination/dom_unclaimed.md3", 0, "", "", "");
+		dom_spawnteam("Pink", COLOR_TEAM4-1, "models/domination/dom_pink_baseless.md3", 0, "domination/claim.wav", "", "Pink team has captured a control point");
+	dom_spawnteam("", 0, "models/domination/dom_unclaimed_baseless.md3", 0, "", "", "");
 };
 
 float dom_spawnpointsfor(string clname)
 {
-	local entity head;
-	local float i;
+	entity head;
+	float i;
 	
-	//head = find(world, classname, clname);
-	for(head = world; (head = find(head, classname, clname));)
-	{
+	for(head = world; (head = find(head, classname, clname));) {
 		bprint("^5Domination: ^7found a ", head.classname, " at ", vtos(head.origin), "\n");
 		dom_spawnpoint(head.origin);
 		++i;
@@ -744,6 +739,42 @@ float dom_spawnpointsfor(string clname)
 	
 	bprint("^5Domination:^7 spawned ", ftos(i), " controlpoints for ^6", clname, "\n");
 	return i;
+}
+
+.float dom_used;
+float dom_spawnextrapoints(float numpts, float minpts) {
+    entity head, phead, pt;
+    float i, maxdst, mindst, dst;
+    
+    if(numpts >= minpts)
+        return 0;
+    
+    while(i < minpts-numpts) {
+        maxdst = 0;
+        for(head = world; (head = find(head, classname, "info_player_deathmatch"));) {
+            mindst = 0;
+            for(phead = world; (phead = find(phead, classname, "dom_controlpoint"));) {
+                dst = vlen(phead.origin - head.origin);
+                if(!mindst || dst < mindst)
+                    mindst = dst;
+            }
+            
+            if(mindst >= maxdst) {
+                maxdst = mindst;
+                pt = head;
+            }
+        }
+        
+        if(!pt) {
+            print("Spawning of extra domination points aborted!\n");
+            return i;
+        }
+        
+        dom_spawnpoint(pt.origin);
+        ++i;
+    }
+    
+    return i;
 }
 
 void dom_removeall(string clname)
@@ -789,10 +820,12 @@ void dom_delayedinit()
 		for(j = 0; j < n; ++j)
 			i += dom_spawnpointsfor(argv(j));
 		
+        i += dom_spawnextrapoints(i, cvar("g_domination_spawnpoints_min"));
+        
 		n = tokenizebyseparator(cvar_string("g_domination_removeitems"), " ");
 		for(j = 0; j < n; ++j)
 			dom_removeall(argv(j));
-		
+        
 		bprint("^5Domination:^7 spawned ", ftos(i), " controlpoints\n");
 	}
 	else
@@ -815,7 +848,6 @@ void totaldom_init()
 	else
 		warmup = time + cvar("g_start_delay");
 	
-	tdom_maycap = 1;
 	precache_sound("ctf/red_capture.wav");
     precache_sound("ctf/blue_capture.wav");
 }
@@ -825,11 +857,11 @@ void dom_init()
 	// we have to precache default models/sounds even if they might not be
 	// used because spawnfunc_worldspawn is executed before any other entities are read,
 	// so we don't even know yet if this map is set up for domination...
-	precache_model("models/domination/dom_red.md3");
-	precache_model("models/domination/dom_blue.md3");
-	precache_model("models/domination/dom_yellow.md3");
-	precache_model("models/domination/dom_pink.md3");
-	precache_model("models/domination/dom_unclaimed.md3");
+	precache_model("models/domination/dom_red_baseless.md3");
+	precache_model("models/domination/dom_blue_baseless.md3");
+	precache_model("models/domination/dom_yellow_baseless.md3");
+	precache_model("models/domination/dom_pink_baseless.md3");
+	precache_model("models/domination/dom_unclaimed_baseless.md3");
 	precache_sound("domination/claim.wav");
 	InitializeEntity(world, dom_delayedinit, INITPRIO_GAMETYPE);
 

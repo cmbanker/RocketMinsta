@@ -134,6 +134,7 @@ void vip_SoulGem_touch()
 			oldself = self;
 			self = e;
 			PutClientInServer();
+            HG_ResetState(self);
 			self = oldself;
 			
 			if(ISVIP(e))
@@ -141,6 +142,7 @@ void vip_SoulGem_touch()
 		}
 		vip_started = 1;
 		vip_ended = 0;
+        roundstate = ROUNDSTATE_GAME;
 	}
 	
 	self.gem_pickedup = 1;
@@ -167,8 +169,10 @@ void vip_SoulGem_reset()
 	self.enemy.colormod = vip_SoulGemColormod2(self.team);
 	
 	// "run here" waypoint
-	if(!self.waypointsprite_attached)
-		WaypointSprite_Spawn("keycarrier-finish", 0, 0, self, '0 0 64', world, self.team, self, waypointsprite_attached, TRUE);
+	if(!self.waypointsprite_attached) {
+		WaypointSprite_Spawn("RUN HERE TO BECOME THE VIP!", 0, 0, self, '0 0 64', world, self.team, self, waypointsprite_attached, TRUE);
+        WaypointSprite_UpdateTextColors(self.waypointsprite_attached, '1 0.3 0.6', '0 0 0', '0 0 0');
+    }
 }
 
 void vip_SpawnSoulGem(vector orig, float theteam)
@@ -221,11 +225,11 @@ void vip_SpawnSoulGem(vector orig, float theteam)
 	e.alpha = e.enemy.alpha = 0.8;
 	e.effects = e.enemy.effects = (EF_ADDITIVE | EF_FULLBRIGHT);
 	
-	
-	
 	// "run here" waypoint
-	if(!e.waypointsprite_attached)
-		WaypointSprite_Spawn("keycarrier-finish", 0, 0, e, '0 0 64', world, e.team, e, waypointsprite_attached, TRUE);
+	if(!e.waypointsprite_attached) {
+		WaypointSprite_Spawn("RUN HERE TO BECOME THE VIP!", 0, 0, e, '0 0 64', world, e.team, e, waypointsprite_attached, TRUE);
+        WaypointSprite_UpdateTextColors(e.waypointsprite_attached, '1 0.3 0.6', '0 0 0', '0 0 0');
+    }
 	
 	//MoveToRandomMapLocation(e, DPCONTENTS_SOLID | DPCONTENTS_CORPSE | DPCONTENTS_PLAYERCLIP, DPCONTENTS_SLIME | DPCONTENTS_LAVA | DPCONTENTS_SKY | DPCONTENTS_BODY | DPCONTENTS_DONOTENTER, Q3SURFACEFLAG_SKY, 10, 1024, 256);
 	
@@ -321,18 +325,12 @@ void vip_EndRound()
 	next_round = time + 5;
 	
 	if(!vip_soulgem)
-	{
-		local entity e = spawn();
-		e.think = vip_EndRound_Think;
-		e.nextthink = time + 1;
-		e.cnt = cvar("g_vip_warmup") + next_round;
-		
-		G_EndRound("VIP", 5, cvar("g_vip_warmup"), update_playercount, vip_EndRound_Think, vip_EndRound_Finalize);
-	}
-	else
+		G_EndRound(5, cvar("g_vip_warmup"), SUB_Null, vip_EndRound_Think, vip_EndRound_Finalize);
+	else {
+        roundstate = ROUNDSTATE_OVER;
 		defer(5.1, vip_SoulGem_StartRound);
+    }
     
-    update_playercount();
     defer(5.1, vip_ClearVIPs);
     vip_ended = 1;
     vip_ResetVIPInfo();
@@ -345,6 +343,7 @@ void vip_SoulGem_StartRound_Think()
 {
 	if(!redvip || !bluevip)
 	{
+        roundstate = ROUNDSTATE_OVER;
 		vip_started = 0;
 		vip_ended = 0;
 		
@@ -538,6 +537,16 @@ void vip_UpdateState_Extras()
 	vip_SendVIPInfo(self.vip_maxarmor, self.armorvalue);
 }
 
+void vip_Waypoint(entity pl) {
+    if(pl.waypointsprite_attached)
+        return;
+    
+    WaypointSprite_Spawn("VIP", 0, 0, pl, '0 0 64', world, 0, pl, waypointsprite_attached, TRUE);
+    WaypointSprite_UpdateTextColors(pl.waypointsprite_attached, TeamColor(pl.team), '0 0 0', '0 0 0');
+    if(pl.waypointsprite_attached)
+        WaypointSprite_UpdateTeamRadar(pl.waypointsprite_attached, RADARICON_WAYPOINT, TeamColor(pl.team));
+}
+
 void vip_MakePlayerVIP(entity pl)
 {
 	if(pl.waypointsprite_attached)
@@ -595,27 +604,16 @@ void vip_MakePlayerVIP(entity pl)
 	pl.vip_grenregen_next = time + cvar("g_vip_regenerate_grenades_delay");
 	vip_ResetHealthArmor(pl);
 
-	local entity e, oldself;
-	oldself = self;
-	self = pl;
 	switch(pl.team)
 	{
 		case COLOR_TEAM1:
 			bigprint_spec(pl, "You are the ^1RED^7 vip!", "Survive or your team will lose!", 2);
 			bprint(pl.netname, " ^7is now the ^1RED^7 VIP!\n");
-			
-			WaypointSprite_Spawn("redvip", 0, 0, pl, '0 0 64', world, 0, pl, waypointsprite_attached, TRUE);
-			if(self.waypointsprite_attached)
-				WaypointSprite_UpdateTeamRadar(pl.waypointsprite_attached, RADARICON_WAYPOINT, '1 0 0');
 			break;
 		
 		case COLOR_TEAM2:
 			bigprint_spec(pl, "You are the ^4BLUE^7 vip!", "Survive or your team will lose!", 2);
 			bprint(pl.netname, " ^7is now the ^4BLUE^7 VIP!\n");
-			
-			WaypointSprite_Spawn("bluevip", 0, 0, pl, '0 0 64', world, 0, pl, waypointsprite_attached, TRUE);
-			if(self.waypointsprite_attached)
-				WaypointSprite_UpdateTeamRadar(pl.waypointsprite_attached, RADARICON_WAYPOINT, '0 0 1');
 			break;
 		
 		default:
@@ -623,9 +621,9 @@ void vip_MakePlayerVIP(entity pl)
 			bprint(pl.netname, " ^7screwed everything up\n");
 			break;
 	}
-	self = oldself;
 	
-	FOR_EACH_PLAYER(e) if(e.team == pl.team) if(e != pl)
+    vip_Waypoint(pl);
+	entity e; FOR_EACH_PLAYER(e) if(e.team == pl.team) if(e != pl)
 		centerprint_spec(e, strcat(pl.netname, "^7 is now your VIP!"));
 		
 	play2all("kh/capture.wav");
@@ -637,23 +635,7 @@ void vip_PlayerPreThink()
 	if(!ISVIP(self))
 		return;
 	
-	if(!self.waypointsprite_attached)
-	switch(self.team)
-		{
-			case COLOR_TEAM1:
-				
-				WaypointSprite_Spawn("redvip", 0, 0, self, '0 0 64', world, 0, self, waypointsprite_attached, TRUE);
-				if(self.waypointsprite_attached)
-					WaypointSprite_UpdateTeamRadar(self.waypointsprite_attached, RADARICON_WAYPOINT, '1 0 0');
-				break;
-			
-			case COLOR_TEAM2:
-
-				WaypointSprite_Spawn("bluevip", 0, 0, self, '0 0 64', world, 0, self, waypointsprite_attached, TRUE);
-				if(self.waypointsprite_attached)
-					WaypointSprite_UpdateTeamRadar(self.waypointsprite_attached, RADARICON_WAYPOINT, '0 0 1');
-				break;
-		}
+	vip_Waypoint(self);
 	
 	if(self.vip_updatestate_f)
 		self.vip_updatestate_f();
@@ -677,9 +659,9 @@ void vip_PlayerPreThink()
 	}
 	
     // XXX: this code needs an update for the new grenade regen mechanics
-    if(!cvar("g_handgrenades_regen_time"))
+    if(!cvar("g_nadgets_regen"))
 	if(cvar("g_vip_regenerate_grenades"))
-	if(self.hg_ammo < cvar("g_handgrenades_ammo"))
+	if(self.hg_ammo < cvar("g_nadgets_ammo"))
 	if(time >= self.vip_grenregen_next)
 	{
 		self.hg_ammo += cvar("g_vip_regenerate_grenades_amount");
@@ -792,6 +774,7 @@ void vip_AssignVIPs()
 {
 	if(vip_soulgem)
 	{
+        roundstate = ROUNDSTATE_OVER;
 		vip_SoulGem_StartRound();
 		return;
 	}
@@ -853,7 +836,7 @@ void vip_BlueVIPDown()
 	vip_EndRound();
 }
 
-float vip_PlayerDies(float deathtype)
+float vip_PlayerDies(entity frag_attacker, entity frag_target, float deathtype)
 {
 	DEPENDON_F(g_vip, 0)
 	

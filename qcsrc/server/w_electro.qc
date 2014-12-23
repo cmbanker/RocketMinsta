@@ -132,6 +132,7 @@ void W_Electro_Attack()
 	proj.angles = vectoangles(proj.velocity);
 	proj.touch = W_Plasma_TouchExplode;
 	setsize(proj, '0 0 -3', '0 0 -3');
+    PROJECTILE_FIX(proj)
 	proj.flags = FL_PROJECTILE;
 
 	//sound (proj, CHAN_PAIN, "weapons/electro_fly.wav", VOL_BASE, ATTN_NORM);
@@ -175,6 +176,7 @@ void W_Electro_Attack2()
 	proj.health = cvar("g_balance_electro_secondary_health");
 	proj.event_damage = W_Plasma_Damage;
 	proj.flags = FL_PROJECTILE;
+    PROJECTILE_FIX(proj)
 
 #if 0
 	entity p2;
@@ -303,5 +305,13 @@ float w_electro(float req)
 	{
 		self.electro_secondarytime = time;
 	}
+    else if (req == WR_TT_STORE)
+    {
+        TimeTravel_StoreTime(self,      tt_moment, electro_secondarytime);
+    }
+    else if (req == WR_TT_RESTORE)
+    {
+        TimeTravel_RestoreTime(self,    tt_moment, electro_secondarytime);
+    }
 	return TRUE;
 };

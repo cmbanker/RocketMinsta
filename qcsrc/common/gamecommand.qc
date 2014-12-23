@@ -155,6 +155,10 @@ string GameCommand_Markup(string s2)
 	return s;
 }
 
+.float fade_time;
+.entity attachto;
+.entity aiment;
+
 float GameCommand_Generic(string command)
 {
 	float argc;
@@ -198,7 +202,10 @@ float GameCommand_Generic(string command)
 		print("  maplist maplist\n");
 		print("  maplist lsmaps\n");
 		print("  addtolist variable addedvalue\n");
+		print("  delfromlist variable removedvalue\n");
+		print("  delfromlist_startswith variable removedvalue\n");
 		print("  records\n");
+        print("  crc16 string\n");
 		IP2C_GameCommand("help");
 		return TRUE;
 	}
@@ -852,7 +859,77 @@ float GameCommand_Generic(string command)
 			centerprint(unescape(s));
 		}
 		return TRUE;
+#else
+    } else if(argv(0) == "spawn" || argv(0) == "spawnat") {
+        float argoffs;
+        entity targ;
+        
+        if(argv(0) == "spawnat") {
+            targ = edict_num(stof(argv(1)));
+            ++argoffs;
+        }
+        
+        self = spawn();
+        
+        if(argv(argoffs+1) != "") {
+            parseentitydata(self, strcat("{ ", substring(command, argv_start_index(argoffs+1), strlen(command)), " }"));
+            
+            if(targ) {
+                self.angles = targ.angles;
+                setorigin(self, targ.origin + targ.view_ofs);
+                
+                if(self.velocity) {
+                    vector a = targ.angles;
+                    
+                    #ifdef SVQC
+                    if(clienttype(targ) != CLIENTTYPE_NOTACLIENT)
+                        a = targ.v_angle;
+                    #endif
+                    
+                    makevectors(a + vectoangles(self.velocity));
+                    self.velocity = v_forward * vlen(self.velocity);
+                }
+            }
+            
+            if(self.nextthink)
+                self.nextthink = time + self.nextthink;
+            
+            s = strcat("spawnfunc_", self.classname);
+            
+            if(isfunction(s))
+                callfunction(s);
+            else {
+                setsize(self, self.mins, self.maxs);
+                setmodel(self, self.model);
+                
+                #ifdef SVQC
+                if(self.fade_time)
+                    SUB_SetFade(self, time + self.fade_time, 1);
+                #endif
+            }
+            
+            if(self.attachto) {
+                self.aiment = self.attachto;
+                self.movetype = MOVETYPE_FOLLOW;
+            }
+        }
+        
+        print("Spawned entity #", ftos(num_for_edict(self)), "\n");
+        return TRUE;
+    } else if(argv(0) == "remove") {
+        remove(edict_num(stof(argv(1))));
+        return TRUE;
+    } else if(argv(0) == "setmodel") {
+        setmodel(edict_num(stof(argv(1))), argv(2));
+        return TRUE;
+    } else if(argv(0) == "setsize") {
+        setsize(edict_num(stof(argv(1))), stov(argv(2)), stov(argv(3)));
+        return TRUE;
 #endif
+    } else if(argv(0) == "crc16") {
+        s = substring(command, argv_start_index(1), strlen(command));
+        print(s, ": ^5", ftos(crc16(FALSE, s)), "\n");
+        return TRUE;
 	} else return IP2C_GameCommand(command);
 
 	return FALSE;

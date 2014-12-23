@@ -14,8 +14,10 @@ float hudskin_width_border_right;
 float hudskin_border_simple;
 float hudskin_border_teamcolor;
 float hudskin_sector_teamcolor;
+float hudskin_line_teamcolor;
 float hudskin_border_teamcolor_brightness;
 float hudskin_sector_teamcolor_brightness;
+float hudskin_line_teamcolor_brightness;
 vector hudskin_border_color;
 vector hudskin_sector_color;
 float hudskin_border_alpha;
@@ -40,6 +42,11 @@ vector hudskin_border_teamcolor_mod_red;
 vector hudskin_border_teamcolor_mod_blue;
 vector hudskin_border_teamcolor_mod_yellow;
 vector hudskin_border_teamcolor_mod_pink;
+vector hudskin_line_teamcolor_mod;
+vector hudskin_line_teamcolor_mod_red;
+vector hudskin_line_teamcolor_mod_blue;
+vector hudskin_line_teamcolor_mod_yellow;
+vector hudskin_line_teamcolor_mod_pink;
 float hudskin_flash_line_imod;
 float hudskin_flash_line_amod;
 float hudskin_flash_sector_imod;
@@ -63,14 +70,35 @@ float hudskin_progress_mode;
 float hudskin_progress_sector_colormode;
 vector hudskin_progress_sector_color;
 float hudskin_progress_sector_alpha;
+float hudskin_progress_sector_teamcolor_minalpha;
+vector hudskin_progress_sector_teamcolor_mod;
+vector hudskin_progress_sector_overcharge_colormod;
+float hudskin_progress_sector_overcharge_colormul;
+float hudskin_progress_sector_overcharge_alpha;
 float hudskin_progress_border_colormode;
 vector hudskin_progress_border_color;
 float hudskin_progress_border_alpha;
+float hudskin_progress_border_teamcolor_minalpha;
+vector hudskin_progress_border_teamcolor_mod;
+vector hudskin_progress_border_overcharge_colormod;
+float hudskin_progress_border_overcharge_colormul;
+float hudskin_progress_border_overcharge_alpha;
 string hudskin_image_progress_head;
 vector hudskin_size_progress_head;
 vector hudskin_progress_head_color;
 float hudskin_progress_head_alpha;
 float hudskin_progress_head_teamcolor;
+
+
+vector hudskin_sector_gap;
+float hudskin_sector_gap_screen;
+vector hudskin_sector_gap_fract;
+float hudskin_sector_gap_screen_fract;
+
+vector hudskin_sector_gap_alt;
+float hudskin_sector_gap_screen_alt;
+vector hudskin_sector_gap_fract_alt;
+float hudskin_sector_gap_screen_fract_alt;
 
 float HUDSkin_Load(string);
 void HUDSkin_Unload();
@@ -78,6 +106,7 @@ float HUDSkin_Eval(string);
 float HUDSkin_GetBorderWidth(float);
 vector HUDSkin_GetTeamColorMod_Sector(float);
 vector HUDSkin_GetTeamColorMod_Border(float);
+vector HUDSkin_GetTeamColorMod_Line(float);
 
 #define BORDER_LEFT 0
 #define BORDER_RIGHT 1

@@ -165,7 +165,7 @@ void OnlineBanList_URI_Get_Callback(float id, float status, string data)
 			timeleft = min(syncinterval + (OnlineBanList_Timeout - time) + 5, timeleft);
 			// the ban will be prolonged on the next sync
 			// or expire 5 seconds after the next timeout
-		Ban_Insert(ip, timeleft, strcat("ban synced from ", serverip, " at ", uri), 0);
+		Ban_Insert(ip, timeleft, strcat("[server: ", serverip, "] ", reason), 0);
 		print("Ban list syncing: accepted ban of ", ip, " by ", serverip, " at ", uri, ": ");
 		print(reason, "\n");
 
@@ -214,12 +214,6 @@ void OnlineBanList_Think()
 		self.nextthink = time + max(60, cvar("g_ban_sync_interval") * 60);
 }
 
-#define BAN_MAX 64
-float ban_loaded;
-string ban_ip[BAN_MAX];
-float ban_expire[BAN_MAX];
-float ban_count;
-
 string ban_ip1;
 string ban_ip2;
 string ban_ip3;
@@ -263,6 +257,10 @@ float Ban_Delete(float i)
 	}
 	ban_expire[i] = 0;
 	ban_ip[i] = "";
+    if(ban_reason[i] != "") {
+        strunzone(ban_reason[i]);
+        ban_reason[i] = "";
+    }
 	Ban_SaveBans();
 	return TRUE;
 }
@@ -377,6 +375,7 @@ float Ban_MaybeEnforceBan(entity client)
 	{
 		string s;
 		s = strcat("^1NOTE:^7 banned client ", client.netaddress, " just tried to enter\n");
+        IRC_Announce_Ban(strcat("^1* banned client ^4", client.netaddress, "^1 just tried to enter"));
 		dropclient(client);
 		bprint(s);
 		return TRUE;
@@ -403,6 +402,7 @@ string Ban_Enforce(float i, string reason)
 				reason = strcat(reason, e.netname);
 			}
 			s = strcat(s, "^1NOTE:^7 banned client ", e.netname, "^7 has to go\n");
+            IRC_Announce_Ban(strcat("^1* banned client ^4", e.netaddress, "^1 has to go"));
 			dropclient(e);
 		}
 	bprint(s);
@@ -415,11 +415,14 @@ float Ban_Insert(string ip, float bantime, string reason, float dosync)
 	float i;
 	float j;
 	float bestscore;
-
+    
 	// already banned?
 	for(i = 0; i < ban_count; ++i)
 		if(ban_ip[i] == ip)
 		{
+            if(!ban_reason[i])
+                ban_reason[i] = strzone(reason);
+            
 			// prolong the ban
 			if(time + bantime > ban_expire[i])
 			{
@@ -438,7 +441,7 @@ float Ban_Insert(string ip, float bantime, string reason, float dosync)
 					if(substring(reason, 0, 1) != "~") // like IRC: unauthenticated banner
 						OnlineBanList_SendBan(ip, bantime, reason);
 
-			return FALSE;
+			return -1;
 		}
 
 	// do we have a free slot?
@@ -465,7 +468,7 @@ float Ban_Insert(string ip, float bantime, string reason, float dosync)
 	if(ban_expire[i] > time + bantime)
 	{
 		print(ip, " could not get banned due to no free ban slot\n");
-		return FALSE;
+		return -1;
 	}
 	// okay, insert our new victim as i
 	Ban_Delete(i);
@@ -484,32 +487,31 @@ float Ban_Insert(string ip, float bantime, string reason, float dosync)
 			if(substring(reason, 0, 1) != "~") // like IRC: unauthenticated banner
 				OnlineBanList_SendBan(ip, bantime, reason);
 
-	return TRUE;
+    if(reason)
+        ban_reason[i] = strzone(reason);
+    
+	return i;
 }
 
-void Ban_KickBanClient(entity client, float bantime, float masksize, string reason)
+float Ban_KickBanClient(entity client, float bantime, float masksize, string reason)
 {
 	if(!Ban_GetClientIP(client))
 	{
 		sprint(client, strcat("Kickbanned: ", reason, "\n"));
 		dropclient(client);
-		return;
+		return -1;
 	}
 	// now ban him
 	switch(masksize)
 	{
 		case 1:
-			Ban_Insert(ban_ip1, bantime, reason, 1);
-			break;
+			return Ban_Insert(ban_ip1, bantime, reason, 1);
 		case 2:
-			Ban_Insert(ban_ip2, bantime, reason, 1);
-			break;
+			return Ban_Insert(ban_ip2, bantime, reason, 1);
 		case 3:
-			Ban_Insert(ban_ip3, bantime, reason, 1);
-			break;
+			return Ban_Insert(ban_ip3, bantime, reason, 1);
 		default:
-			Ban_Insert(ban_ip4, bantime, reason, 1);
-			break;
+			return Ban_Insert(ban_ip4, bantime, reason, 1);
 	}
 	/*
 	 * not needed, as we enforce the ban in Ban_Insert anyway

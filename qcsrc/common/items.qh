@@ -17,12 +17,13 @@ float WEP_HLAC			    = 13; float WEPBIT_HLAC		        = 4096;
 float WEP_TUBA        	    = 14; float WEPBIT_TUBA             = 8192;
 float WEP_CAMPINGRIFLE	    = 15; float WEPBIT_CAMPINGRIFLE     = 16384;
 float WEP_FIREBALL          = 16; float WEPBIT_FIREBALL		    = 32768;
-float WEP_LAST				= 16; float WEPBIT_ALL              = 65535;
-float WEP_COUNT             = 17;
+float WEP_ZAPPER            = 17; float WEPBIT_ZAPPER           = 65536;
+float WEP_LAST				= 17; float WEPBIT_ALL              = 131071;
+float WEP_COUNT             = 18;
 
-float BOT_PICKUP_RATING_LOW	= 2500;
-float BOT_PICKUP_RATING_MID	= 5000;
-float BOT_PICKUP_RATING_HIGH	= 10000;
+float BOT_PICKUP_RATING_LOW	 = 2500;
+float BOT_PICKUP_RATING_MID	 = 5000;
+float BOT_PICKUP_RATING_HIGH = 10000;
 
 float WEP_TYPE_OTHER	= 0;	// e.g: Hook, Port-o-launch, etc
 float WEP_TYPE_SPLASH	= 1;
@@ -62,6 +63,7 @@ float	IT_5HP					= 524288;
 float	IT_25HP					= 1048576;
 float	IT_ARMOR_SHARD			= 2097152;
 float	IT_ARMOR				= 4194304;
+float   IT_NADGET               = 8388608;
 
 float	IT_AMMO					= 8064; // IT_SHELLS | IT_NAILS | IT_ROCKETS | IT_CELLS | IT_SUPERWEAPON | IT_FUEL;
 float	IT_PICKUPMASK           = 51; // IT_FUEL_REGEN | IT_JETPACK | IT_UNLIMITED_AMMO; // strength and invincible are handled separately

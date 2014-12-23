@@ -1,0 +1,9 @@
+
+float sv_damagestats;
+
+.entity dtrack_total;
+.entity dtrack_taken;
+
+void DamageTracker_RecordAndSend(entity, float, float, float);
+void DamageTracker_Overwrite(entity, entity, float);
+void DamageTracker_Print(entity, entity);

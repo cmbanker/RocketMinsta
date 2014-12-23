@@ -1,0 +1,23 @@
+
+#define BUFF_ARC        1
+#define BUFF_SUPPLY     2
+#define BUFF_GUARD      4
+#define BUFF_HASTE      8
+#define BUFF_MEDIC      16
+#define BUFF_IGNITE     32
+#define BUFF_VAMPIRE    64
+#define BUFF_TENACITY   128
+#define BUFF_WRATH      256
+#define BUFF_ADEPT      512
+#define BUFF_MEODP      1024
+
+#define BUFF_FIRST      BUFF_ARC
+#define BUFF_LAST       BUFF_MEODP
+#define BUFF_COUNT      11
+
+string Buffs_TypeToName(float);
+float Buffs_NameToType(string);
+string Buffs_TypeToExpandedName(float);
+string Buffs_NameToExpandedName(string);
+vector Buffs_TypeToColor(float);
+float Buffs_TypeToIndex(float);

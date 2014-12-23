@@ -1,0 +1,4 @@
+
+void te_csqc_lightningarc(vector from, vector to, float flash, float ateam);
+void te_heal(entity e);
+void te_blast(vector loc);

@@ -174,7 +174,7 @@ void sm_Frame() {
 	
 	vector sm_extra_size = '1 1 1' * 10;
 	
-	FOR_EACH_PLAYER(other) if(!other.freezetag_frozen) if(self != other) if(self.team == other.team) {
+	FOR_EACH_PLAYER(other) if(!other.frozen) if(self != other) if(self.team == other.team) {
 		if(boxesoverlap(self.absmin - sm_extra_size, self.absmax + sm_extra_size, other.absmin, other.absmax)) {
 			sm_Attach(other, self);
 		}

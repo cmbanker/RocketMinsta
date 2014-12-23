@@ -3,6 +3,7 @@ float waypointsprite_fadedistance;
 float waypointsprite_normdistance;
 float waypointsprite_minscale;
 float waypointsprite_minalpha;
+float waypointsprite_alpha;
 float waypointsprite_distancealphaexponent;
 float waypointsprite_timealphaexponent;
 float waypointsprite_scale;
@@ -15,6 +16,8 @@ float waypointsprite_crosshairfadedistance;
 float waypointsprite_distancefadealpha;
 float waypointsprite_distancefadescale;
 float waypointsprite_distancefadedistance;
+float waypointsprite_pointer_scale;
+float waypointsprite_pointer_edgefadescale;
 
 .float rule;
 .string netname; // primary picture
@@ -30,6 +33,16 @@ float waypointsprite_distancefadedistance;
 .float build_started;
 .float build_starthealth;
 .float build_finished;
+.float ownerteam;
+.vector clr1;
+.vector clr2;
+.vector clr3;
+.float topalpha;
+.string toptext;
+.float toptextmode;
+.float frozenid;
+.float frozen_alpha;
+.float ispointer;
 
 vector SPRITE_SIZE = '288 36 0';
 vector SPRITE_HOTSPOT = '144 36 0';
@@ -108,7 +121,19 @@ void drawhealthbar(vector org, float rot, float h, vector sz, vector hotspot, fl
 void Draw_WaypointSprite()
 {
 	string spriteimage;
-	float t;
+	float t, me, spritemode;
+    vector txtclr;
+    
+    float ws_scale = waypointsprite_scale;
+    float ws_edgefadescale = waypointsprite_edgefadescale;
+
+    if(self.ispointer) {
+        ws_scale *= waypointsprite_pointer_scale;
+        ws_edgefadescale *= waypointsprite_pointer_edgefadescale;
+    }
+
+    if(ws_scale <= 0)
+        return;
 
 	if(self.lifetime)
 		self.alpha = pow(bound(0, (self.fadetime - time) / self.lifetime, 1), waypointsprite_timealphaexponent);
@@ -126,17 +151,15 @@ void Draw_WaypointSprite()
 			return; // fixed waypoint
 
 	InterpolateOrigin_Do();
-
-	t = GetPlayerColor(player_localentnum - 1) + 1;
+    me = ((spectatee_status > 0)? spectatee_status : player_localentnum) - 1;
+    t = GetPlayerColor(me) + 1;
 
 	spriteimage = "";
 
 	// choose the sprite
-	switch(self.rule)
-	{
+	switch(self.rule) {
 		case SPRITERULE_DEFAULT:
-			if(self.team)
-			{
+			if(self.team) {
 				if(self.team == t)
 					spriteimage = self.netname;
 				else
@@ -144,33 +167,85 @@ void Draw_WaypointSprite()
 			}
 			else
 				spriteimage = self.netname;
+            txtclr = self.clr1;
+            
+            if(self.ownerteam == t && self.netname2 != "") {
+                self.topalpha = approach(self.topalpha, 1, drawframetime * 2);
+                
+                if(self.toptextmode != 1) {
+                    self.toptextmode = 1;
+                    if(self.toptext) {
+                        strunzone(self.toptext);
+                        self.toptext = string_null;
+                    }
+                }
+                
+                if(!self.toptext)
+                    self.toptext = strzone(self.netname2);
+            } else if(self.netname3 != "") {
+                self.topalpha = approach(self.topalpha, 1, drawframetime * 2);
+                
+                if(self.toptextmode != 2) {
+                    self.toptextmode = 2;
+                    if(self.toptext) {
+                        strunzone(self.toptext);
+                        self.toptext = string_null;
+                    }
+                }
+                
+                if(!self.toptext)
+                    self.toptext = strzone(self.netname3);
+            } else {
+                self.topalpha = approach(self.topalpha, 0, drawframetime * 2);
+                if(!self.topalpha && self.toptext) {
+                    strunzone(self.toptext);
+                    self.toptext = string_null;
+                }
+            }
 			break;
 		case SPRITERULE_TEAMPLAY:
-			if(t == COLOR_SPECTATOR + 1)
+			if(t == COLOR_SPECTATOR + 1) {
 				spriteimage = self.netname3;
-			else if(self.team == t)
+                txtclr = self.clr3;
+            } else if(self.team == t) {
 				spriteimage = self.netname2;
-			else
+                txtclr = self.clr2;
+			} else {
 				spriteimage = self.netname;
+                txtclr = self.clr1;
+            }
 			break;
 		default:
 			error("Invalid waypointsprite rule!");
 			break;
 	}
-
+    
 	if(spriteimage == "")
 		return;
 	
+    if(txtclr == '0 0 0')
+        spritemode = TRUE;
+    
 	float dist;
 	dist = vlen(self.origin - view_origin);
 	
 	float a;
-	a = self.alpha * sbar_alpha_fg;
+	a = self.alpha * sbar_alpha_fg * waypointsprite_alpha;
 
 	if(self.maxdistance > waypointsprite_normdistance)
 		a *= pow(bound(0, (self.maxdistance - dist) / (self.maxdistance - waypointsprite_normdistance), 1), waypointsprite_distancealphaexponent);
 	else if(self.maxdistance > 0)
 		a *= pow(bound(0, (waypointsprite_fadedistance - dist) / (waypointsprite_fadedistance - waypointsprite_normdistance), 1), waypointsprite_distancealphaexponent) * (1 - waypointsprite_minalpha) + waypointsprite_minalpha;
+    
+    if(rm_shownames && self.frozenid) {
+        entity p = playerslots[self.frozenid-1];
+        if(time - p.sn_lastdraw > drawframetime * 3) {
+            self.frozen_alpha = approach(self.frozen_alpha, 1, drawframetime * 3);
+        } else {
+            self.frozen_alpha = approach(self.frozen_alpha, 0, drawframetime * 3);
+        }
+        a = a * self.frozen_alpha;
+    }
 
 	if(a <= 0)
 		return;
@@ -180,8 +255,14 @@ void Draw_WaypointSprite()
 	float rot;
 	o = project_3d_to_2d(self.origin);
 	rot = 0;
+    
+    float maxw = vid_conwidth;
+    float maxh = vid_conheight;
+    
+    if(cvar("viewsize") < 120 || !cvar("r_letterbox"))
+        maxh -= 50;
 
-	if(o_z < 0 || o_x < 0 || o_y < 0 || o_x > vid_conwidth || o_y > vid_conheight)
+	if(o_z < 0 || o_x < 0 || o_y < 0 || o_x > maxw || o_y > maxh)
 	{
 		// scale it to be just in view
 		vector d;
@@ -194,15 +275,15 @@ void Draw_WaypointSprite()
 		d_z = 0;
 		*/
 		
-		d = o - '0.5 0 0' * vid_conwidth - '0 0.5 0' * vid_conheight;
+		d = o - '0.5 0 0' * maxw - '0 0.5 0' * maxh;
 
 		/*
 		if(cvar("v_flipped"))
 			d_x = -d_x;
 		*/
 
-		f1 = d_x / vid_conwidth;
-		f2 = d_y / vid_conheight;
+		f1 = d_x / maxw;
+		f2 = d_y / maxh;
 
 		if(max(f1, -f1) > max(f2, -f2))
 		{
@@ -235,25 +316,26 @@ void Draw_WaypointSprite()
 			}
 		}
 
-		o = d + '0.5 0 0' * vid_conwidth + '0 0.5 0' * vid_conheight;
+		o = d + '0.5 0 0' * maxw + '0 0.5 0' * maxh;
 	}
 	o_z = 0;
 
 	float vidscale;
 	vidscale = max(vid_conwidth / vid_width, vid_conheight / vid_height);
 
-	t = stof(db_get(tempdb, strcat("/spriteframes/", spriteimage)));
-	if(t == 0)
-		spriteimage = strcat("models/sprites/", spriteimage);
-	else
-		spriteimage = strcat("models/sprites/", spriteimage, "_frame", ftos(mod(floor((max(0, time - self.spawntime)) * 2), t)));
+    if(spritemode) {
+        t = stof(db_get(tempdb, strcat("/spriteframes/", spriteimage)));
+        if(t == 0)
+            spriteimage = strcat("models/sprites/", spriteimage);
+        else
+            spriteimage = strcat("models/sprites/", spriteimage, "_frame", ftos(mod(floor((max(0, time - self.spawntime)) * 2), t)));
+    }
 
 	float edgedistance_min, crosshairdistance;
-	edgedistance_min = min4(o_y, o_x,vid_conwidth - o_x, vid_conheight - o_y);
+	edgedistance_min = min4(o_y, o_x, maxw - o_x, maxh - o_y);
+	crosshairdistance = sqrt(pow(o_x - vid_conwidth/2, 2) + pow(o_y - vid_conheight/2, 2));
 
-	crosshairdistance = sqrt( pow(o_x - vid_conwidth/2, 2) + pow(o_y - vid_conheight/2, 2) );
-
-	t = waypointsprite_scale * vidscale;
+	t = ws_scale * vidscale;
 
 	{
 		a = a * (1 - (1 - waypointsprite_distancefadealpha) * (bound(0, dist/waypointsprite_distancefadedistance, 1)));
@@ -261,15 +343,40 @@ void Draw_WaypointSprite()
 	}
 	if (edgedistance_min < waypointsprite_edgefadedistance) {
 		a = a * (1 - (1 - waypointsprite_edgefadealpha) * (1 - bound(0, edgedistance_min/waypointsprite_edgefadedistance, 1)));
-		t = t * (1 - (1 - waypointsprite_edgefadescale) * (1 - bound(0, edgedistance_min/waypointsprite_edgefadedistance, 1)));
+		t = t * (1 - (1 - ws_edgefadescale)             * (1 - bound(0, edgedistance_min/waypointsprite_edgefadedistance, 1)));
 	}
 	if(crosshairdistance < waypointsprite_crosshairfadedistance) {
 		a = a * (1 - (1 - waypointsprite_crosshairfadealpha) * (1 - bound(0, crosshairdistance/waypointsprite_crosshairfadedistance, 1)));
 		t = t * (1 - (1 - waypointsprite_crosshairfadescale) * (1 - bound(0, crosshairdistance/waypointsprite_crosshairfadedistance, 1)));
 	}
-	drawrotpic(o, rot * 90 * DEG2RAD, spriteimage, SPRITE_SIZE * t, SPRITE_HOTSPOT * t, '1 1 1', a, DRAWFLAG_MIPMAP);
-
-	if(self.build_finished)
+    
+    float m = 10;
+    float txty;
+    
+    if(spritemode)
+        drawrotpic(o, rot * 90 * DEG2RAD, spriteimage, SPRITE_SIZE * t, SPRITE_HOTSPOT * t, '1 1 1', a, DRAWFLAG_MIPMAP);
+    else {
+        drawfont = sbar_bigfont;
+        vector fs = '30 30 0' * t;
+        float sw = stringwidth_svn(spriteimage, FALSE, fs);
+        vector oc = o - '0.5 0 0' * sw + '0 -20 0';
+        oc_x = bound(m, oc_x, vid_conwidth - sw - m);
+        oc_y = bound(m, oc_y, vid_conheight - fs_y - m);
+        txty = oc_y;
+        drawstring(oc, spriteimage, fs, txtclr, a, DRAWFLAG_NORMAL);
+        if(self.toptext) {
+            fs += '1 1 0' * 2 * sin(time*3);
+            sw = stringwidth_svn(self.toptext, FALSE, fs);
+            oc_y = bound(m + fs_y*1.5, oc_y - fs_y*1.5, vid_conheight - fs_y*3 - m);
+            oc_x = bound(m, o_x - sw * 0.5, vid_conwidth - sw - m);
+            drawstring(oc, self.toptext, fs, ((self.toptextmode == 1)? self.clr2 : self.clr3), a * self.topalpha, DRAWFLAG_NORMAL);
+        }
+        drawfont = sbar_font;
+    }
+    
+    float ha = 1;
+    
+	if(self.build_finished > 0)
 	{
 		if(time < self.build_finished + 0.25)
 		{
@@ -277,8 +384,10 @@ void Draw_WaypointSprite()
 				self.health = self.build_starthealth;
 			else if(time < self.build_finished)
 				self.health = (time - self.build_started) / (self.build_finished - self.build_started) * (1 - self.build_starthealth) + self.build_starthealth;
-			else
+			else {
 				self.health = 1;
+                ha = 1 - (time - self.build_finished) * 4;
+            }
 		}
 		else
 			self.health = -1;
@@ -291,7 +400,18 @@ void Draw_WaypointSprite()
 			align = 0.5;
 		else
 			align = 0;
-		drawhealthbar(o, rot * 90 * DEG2RAD, self.health, SPRITE_SIZE * t, SPRITE_HOTSPOT * t, SPRITE_HEALTHBAR_WIDTH * t, SPRITE_HEALTHBAR_HEIGHT * t, SPRITE_HEALTHBAR_MARGIN * t, SPRITE_HEALTHBAR_BORDER * t, align, self.teamradar_color, a * SPRITE_HEALTHBAR_BORDERALPHA, self.teamradar_color, a * SPRITE_HEALTHBAR_HEALTHALPHA, DRAWFLAG_NORMAL);
+        
+        float w = SPRITE_HEALTHBAR_WIDTH * t;
+        float h = SPRITE_HEALTHBAR_HEIGHT * t;
+        vector ssize = SPRITE_SIZE * t;
+        
+        if(!spritemode) {
+            rot = 0;
+            o_x = bound(m + w * 0.5, o_x, vid_conwidth - w * 0.5 - m);
+            o_y = bound(m + h * 0.5, txty + h*5, vid_conheight - h * 0.5);
+        }
+        
+		drawhealthbar(o, rot * 90 * DEG2RAD, self.health, ssize, SPRITE_HOTSPOT * t, w, h, SPRITE_HEALTHBAR_MARGIN * t, SPRITE_HEALTHBAR_BORDER * t, align, self.teamradar_color, ha * a * SPRITE_HEALTHBAR_BORDERALPHA, self.teamradar_color, ha * a * SPRITE_HEALTHBAR_HEALTHALPHA, DRAWFLAG_NORMAL);
 	}
 }
 
@@ -305,18 +425,37 @@ void Ent_RemoveWaypointSprite()
 		strunzone(self.netname3);
 }
 
+vector ReadColor() {
+    vector v;
+    // brighter text for readability
+    v_x = ReadByte() / 255.0;
+    v_y = ReadByte() / 255.0;
+    v_z = ReadByte() / 255.0;
+    
+    if(v == '0 0 0')
+        return v;
+    
+    v_x = bound(0.2, v_x, 1);
+    v_y = bound(0.2, v_y, 1);
+    v_z = bound(0.2, v_z, 1);
+    return v;
+}
+
 void Ent_WaypointSprite()
 {
 	float sendflags, f, t;
 	sendflags = ReadByte();
-
-	if(!self.spawntime)
-		self.spawntime = time;
+    
+    if(!self.spawntime) {
+        self.spawntime = time;
+        self.build_finished = -1;
+        self.health = -1;
+    }
 
 	self.draw2d = Draw_WaypointSprite;
-
+    
 	InterpolateOrigin_Undo();
-
+    
 	if(sendflags & 0x80)
 	{
 		t = ReadByte();
@@ -329,7 +468,7 @@ void Ent_WaypointSprite()
 		{
 			t = (t - 192) * 256 + ReadByte();
 			self.build_started = servertime;
-			if(self.build_finished)
+			if(self.build_finished > 0)
 				self.build_starthealth = bound(0, self.health, 1);
 			else
 				self.build_starthealth = 0;
@@ -337,11 +476,13 @@ void Ent_WaypointSprite()
 			//print("build: ", ftos(self.build_finished - self.build_started), "\n");
 		}
 	}
+    /*
 	else
 	{
 		self.health = -1;
 		self.build_finished = 0;
 	}
+    */
 
 	if(sendflags & 64)
 	{
@@ -355,6 +496,8 @@ void Ent_WaypointSprite()
 	{
 		self.team = ReadByte();
 		self.rule = ReadByte();
+        if(self.rule == SPRITERULE_DEFAULT)
+            self.ownerteam = ReadByte();
 	}
 
 	if(sendflags & 2)
@@ -362,6 +505,11 @@ void Ent_WaypointSprite()
 		if(self.netname)
 			strunzone(self.netname);
 		self.netname = strzone(ReadString());
+        
+        if(self.netname == "Frozen!")
+            self.frozenid = ReadByte();
+        else
+            self.ispointer = (substring(self.netname, 0, 8) == "pointer_");
 	}
 
 	if(sendflags & 4)
@@ -395,11 +543,12 @@ void Ent_WaypointSprite()
 			self.(teamradar_times[self.teamradar_time_index]) = time;
 			self.teamradar_time_index = mod(self.teamradar_time_index + 1, MAX_TEAMRADAR_TIMES);
 		}
-		self.teamradar_color_x = ReadByte() / 255.0;
-		self.teamradar_color_y = ReadByte() / 255.0;
-		self.teamradar_color_z = ReadByte() / 255.0;
+		self.teamradar_color = ReadColor();
+        self.clr1 = ReadColor();
+        self.clr2 = ReadColor();
+        self.clr3 = ReadColor();
 	}
-
+    
 	InterpolateOrigin_Note();
 
 	self.entremove = Ent_RemoveWaypointSprite;
@@ -409,11 +558,13 @@ void WaypointSprite_Load()
 {
 	waypointsprite_fadedistance = vlen(mi_max - mi_min);
 	waypointsprite_normdistance = cvar("g_waypointsprite_normdistance");
+    waypointsprite_alpha = cvar("g_waypointsprite_alpha");
+    if(!waypointsprite_alpha) waypointsprite_alpha = 1;
 	waypointsprite_minscale = cvar("g_waypointsprite_minscale");
 	waypointsprite_minalpha = cvar("g_waypointsprite_minalpha");
 	waypointsprite_distancealphaexponent = cvar("g_waypointsprite_distancealphaexponent");
 	waypointsprite_timealphaexponent = cvar("g_waypointsprite_timealphaexponent");
-	waypointsprite_scale = cvar_or("g_waypointsprite_scale", 1) * (1 - cvar("_menu_alpha"));
+	waypointsprite_scale = cvar_or("g_waypointsprite_scale", 1) * (1 - cvar("_menu_alpha")) * 1.2;
 	waypointsprite_edgefadealpha = cvar_or("g_waypointsprite_edgefadealpha", 1);
 	waypointsprite_edgefadescale = cvar_or("g_waypointsprite_edgefadescale", 1);
 	waypointsprite_edgefadedistance = cvar("g_waypointsprite_edgefadedistance");
@@ -423,6 +574,8 @@ void WaypointSprite_Load()
 	waypointsprite_distancefadealpha = cvar_or("g_waypointsprite_distancefadealpha", 1);
 	waypointsprite_distancefadescale = cvar_or("g_waypointsprite_distancefadescale", 1);
 	waypointsprite_distancefadedistance = vlen(mi_max - mi_min) * cvar_or("g_waypointsprite_distancefadedistancemultiplier", 1);
+    waypointsprite_pointer_scale = cvar_or("g_waypointsprite_pointer_scale", 1);
+    waypointsprite_pointer_edgefadescale = cvar_or("g_waypointsprite_pointer_edgefadescale", 1);
 
 	if(!waypointsprite_initialized)
 	{

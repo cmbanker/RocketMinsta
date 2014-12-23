@@ -8,6 +8,9 @@
 .float dps_damage;
 .float dps_hits;
 
+float RadiusDamage_running;
+vector RadiusDamage_blastorigin;
+
 void DPS_Message(entity p, string s) {
     sprint(p, strcat("^2DPS: ^7", s, "\n"));
 }
@@ -245,7 +248,7 @@ void GiveFrags (entity attacker, entity inflictor, entity targ, float f)
 		if(g_ctf_ignore_frags)
 			f = 0;
 	}
-	else if(g_freezetag || g_totaldomination || g_vip || g_jailbreak)
+	else if(g_freezetag || g_totaldomination || g_vip || g_jailbreak || g_clanarena)
 	{
 		f = 0;
 	}
@@ -299,17 +302,27 @@ void LogDeath(string mode, float deathtype, entity killer, entity killed)
 	GameLogEcho(s);
 }
 
-//<akari>
 .float pushltime;
 .float rage;
 .float lastkill;
-//</akari>
+
+float CheckJailDM(entity attacker, entity targ) {
+    if(g_jailbreak)
+    if(g_jailbreak_jail_deathmatch)
+    if(targ.team == attacker.team)
+    if(targ.jb_isprisoned)
+    if(attacker.jb_isprisoned)
+    if(!JB_JailIsOpen(JB_GetEnemyTeamOf(targ.team)))
+        return TRUE;
+    return FALSE;
+}
 
 void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 {
 	string	s, a;
 	float p, w;
     float spawnfrag;
+    float jaildm;
 
 	local float maxrage = 5;
 	local float rage_timeout = 3;
@@ -330,6 +343,7 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 		}
 	}
     
+    jaildm = CheckJailDM(attacker, targ);
     targ.hg_shield = 0;
     
     DPS_Finish(targ);
@@ -358,7 +372,7 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 			else
 				ragemeter = strcat(ragemeter, "");
 
-			i++;
+			++i;
 		}
 		if(attacker.rage-1 >= maxrage)
 			ragemeter = strcat(ragemeter, "");
@@ -385,7 +399,7 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
         HG_DetonateAll(targ);
         
         if(!g_freezetag && !g_jailbreak) {
-            if(cvar("g_handgrenades_resetonrespawn"))
+            if(cvar("g_nadgets_resetonrespawn"))
                 targ.hg_ammo = 0;
         }
 		
@@ -419,7 +433,7 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 					centerprint_spec(targ, strcat(DAMAGE_CENTERPRINT_SPACER, "^1You need to preserve your health"));
 				else
 					centerprint_spec(targ, strcat(DAMAGE_CENTERPRINT_SPACER, "^1You grew too old without taking your medicine"));
-			} else if (deathtype == DEATH_MIRRORDAMAGE) {
+			} else if(deathtype == DEATH_MIRRORDAMAGE) {
                                 if(g_prec) {
 			        	if(sv_gentle)
 				        	centerprint_spec(targ, strcat(DAMAGE_CENTERPRINT_SPACER, "^1Go aginst the rune carrier!"));
@@ -431,6 +445,8 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 				        else
 					        centerprint_spec(targ, strcat(DAMAGE_CENTERPRINT_SPACER, "^1Don't shoot your team mates!"));
                                 }
+            } else if(deathtype == DEATH_NOISE) {
+                centerprint_spec(targ, "^1You were too noisy to live");
 			} else {
 				if(sv_gentle)
 					centerprint_spec(targ, strcat(DAMAGE_CENTERPRINT_SPACER, "^1You need to be more careful!"));
@@ -480,6 +496,8 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 					bprint ("^1",s, "^1 burned to death\n");
 				else if (deathtype == DEATH_HG_NAPALM)
 					bprint ("^1",s, "^1 played with fire\n");
+                else if (deathtype == DEATH_NOISE)
+                    bprint ("^1",s, "^1 was too noisy to live\n");
 				else if (deathtype != DEATH_TEAMCHANGE)
 					bprint ("^1",s, "^1 couldn't resist the urge to self-destruct\n");
 					
@@ -494,7 +512,7 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 		}
 		else if (attacker.classname == "player" || attacker.classname == "gib")
 		{
-			if(teams_matter && attacker.team == targ.team)
+			if(teams_matter && attacker.team == targ.team && !jaildm)
 			{
 				if(sv_gentle) {
 					centerprint_spec(attacker, strcat(DAMAGE_CENTERPRINT_SPACER, "^1Moron! You went against a team mate!"));
@@ -651,15 +669,11 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 					}
 					else
 					{
-						local string tail;
-						tail = "";
+						string tail;
 						
 						if(cvar("sv_extendfragmessages")) {
-							if(DEATH_ISHG(deathtype))
-								tail = HG_TypeToExpandedName(deathtype);
-							else 
-								tail = get_weaponinfo(DEATH_WEAPONOF(deathtype)).message;
-								
+							tail = DamageTracker_DamageSourceName(deathtype, FALSE);
+                            
 							if(tail != "")
 								tail = strcat(" with ^7", tail);
 						}
@@ -688,7 +702,7 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 						else
 							bprint("^1", s, "^1 ", substring(w_deathtypestring, 0, p), a, "^1", substring(w_deathtypestring, p+1, strlen(w_deathtypestring) - (p+1)), "\n");
 					}
-					else if (deathtype == DEATH_TELEFRAG)
+					else if (deathtype == DEATH_TELEFRAG || deathtype == HG_TRANSLOC)
 						bprint ("^1",s, "^1 was telefragged by ", a, "\n");
 					else if (deathtype == DEATH_DROWN)
 						bprint ("^1",s, "^1 was drowned by ", a, "\n");
@@ -724,13 +738,26 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 					else if(deathtype == DEATH_HG_NORMAL)
 						bprint ("^1", s, "^1 didn't notice ", a, "^1's grenade\n");
 					else if(deathtype == DEATH_HG_NAPALM)
-						bprint ("^1", s, "^1 was burnt to ashes by ", a, "^1's napalm grenade\n");
-                    else if(deathtype == DEATH_HG_REMOTE)
-                        bprint ("^1", s, "^1 fell for ", a, "^1's trap\n");
-                    else if(deathtype == DEATH_HG_PLASMA || deathtype == DEATH_HG_PLASMA_SHARD)
+                        bprint ("^1", s, "^1 engaged in ", a, "^1's hot napalm action\n");
+                    else if(deathtype == DEATH_HG_REMOTE) {
+                        if(targ == inflictor)   // fire damage does this
+                            bprint ("^1", s, "^1 was incinerated by ", a, "^1's fire trap\n");
+                        else
+                            bprint ("^1", s, "^1 fell for ", a, "^1's trap\n");
+                    } else if(deathtype == DEATH_HG_PLASMA)
                         bprint ("^1", s, "^1 was blasted by ", a, "^1's plasma bomb\n");
+                    else if(deathtype == DEATH_HG_PLASMA_SHARD)
+                        bprint ("^1", s, "^1 took a walk over ", a, "^1's hot plasma\n");
                     else if(deathtype == DEATH_HG_SHIELD)
-                        bprint ("^1", s, "^1 tried to get through ", a, "^1's reflective shield\n");
+                        bprint ("^1", s, "^1 suffered from death feedback induced by ", a, "^1's reflective shield\n");
+                    else if(deathtype == DEATH_HG_GG)
+                        bprint ("^1", s, "^1 has been outskilled by ", a, "^1's gg button, gg!\n");
+                   	else if(deathtype == DEATH_HG_LASER)
+                        bprint ("^1", s, "^1 took ", a, "^1's blazing charge\n");
+                   	else if(deathtype == DEATH_MEODP)
+                        bprint ("^1", s, "^1 exposed his sensitive spot to ", a, "^1's Mystic Eyes of Death Perception\n");
+                    else if(deathtype == DEATH_HG_BAIT)
+                        bprint ("^1", s, "^1 took ", a, "^1's bait\n");
 					else
 						bprint ("^1",s, "^1 was fragged by ", a, "\n");
 				}
@@ -742,7 +769,7 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 					hudflash_teamcolor_default_spec(attacker);
 					GiveFrags(attacker, inflictor, targ, 0); // for logging
 				}
-				else if(!spawnfrag)
+				else if(!spawnfrag && !jaildm)
 					GiveFrags(attacker, inflictor, targ, 1);
 
 				if (targ.killcount > 2) {
@@ -836,35 +863,62 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 					}
 				}
 
-				#define RAGESOUND announce(attacker, "porto/fire.wav");
-				switch(attacker.rage)
-				{
-					case 0:
-					case 1:
-						break;
+                #define RAGESOUND announce(attacker, "porto/fire.wav");
+                switch(attacker.rage) {
+                    case 0:
+                    case 1:
+                        break;
 
-					case 2: RAGESOUND
-						bigprint_spec(attacker, "^2double^7kill!", ragemeter, 1);
+                    case 2: RAGESOUND
+                        bigprint_spec(attacker, "^2Double ^7Kill!", ragemeter, 1);
                         bprint(attacker.netname, " ^7scored a ^2DOUBLE ^7KILL!\n");
-						break;
-					case 3: RAGESOUND
-						bigprint_spec(attacker, "^3triple^7kill!", ragemeter, 1);
+                        break;
+                    case 3: RAGESOUND
+                        bigprint_spec(attacker, "^3Triple ^7Kill!", ragemeter, 1);
                         bprint(attacker.netname, " ^7scored a ^3TRIPLE ^7KILL!\n");
-						break;
-					case 4: RAGESOUND
-						bigprint_spec(attacker, "^6quad^7kill!", ragemeter, 1);
+                        break;
+                    case 4: RAGESOUND
+                        bigprint_spec(attacker, "^6Quad ^7Kill!", ragemeter, 1);
                         bprint(attacker.netname, " ^7scored a ^6QUAD ^7KILL!\n");
-						break;
-					case 5: RAGESOUND
-						bigprint_spec(attacker, "^5ultra^7kill!", ragemeter, 1);
+                        break;
+                    case 5: RAGESOUND
+                        bigprint_spec(attacker, "^5Ultra ^7Kill!", ragemeter, 1);
                         bprint(attacker.netname, " ^7scored an ^5ULTRA ^7KILL!\n");
-						break;
-					default: case 6: RAGESOUND
-						bigprint_spec(attacker, "^1monster^7kill!", ragemeter, 1);
+                        break;
+                    case 6: RAGESOUND
+                        bigprint_spec(attacker, "^1Monster ^7Kill!", ragemeter, 1);
                         bprint(attacker.netname, " ^7scored a ^1MONSTER ^7KILL!\n");
-						break;
-				}
-				#undef RAGESOUND
+                        break;
+                    case 7: RAGESOUND
+                        bigprint_spec(attacker, "^2Hax ^7Kill!", ragemeter, 1);
+                        bprint(attacker.netname, " ^7scored a ^2HAX ^7KILL!\n");
+                        break;
+                    case 8: RAGESOUND
+                        bigprint_spec(attacker, "^3Aimbot ^7Kill!", ragemeter, 1);
+                        bprint(attacker.netname, " ^7scored an ^3AIMBOT ^7KILL!\n");
+                        break;
+                    case 9: RAGESOUND
+                        bigprint_spec(attacker, "^6Fegget ^7Kill!", ragemeter, 1);
+                        bprint(attacker.netname, " ^7scored a ^6FEGGET ^7KILL!\n");
+                        break;
+                    case 10: RAGESOUND
+                        bigprint_spec(attacker, "^5Yo Momma ^7Kill!", ragemeter, 1);
+                        bprint(attacker.netname, " ^7scored a ^5YO MOMMA ^7KILL!\n");
+                        break;
+                    case 11: RAGESOUND
+                        bigprint_spec(attacker, "^xE90Potato ^7Kill!", ragemeter, 1);
+                        bprint(attacker.netname, " ^7scored a ^xE90POTATO ^7KILL!\n");
+                        break;
+                    default: case 12: RAGESOUND
+                        bigprint_spec(attacker, "^1Kill la ^7Kill!", ragemeter, 1);
+                        bprint(attacker.netname, " ^7scored a ^1KILL LA ^7KILL!\n");
+                        break;
+                }
+                #undef RAGESOUND
+                
+                if(g_nadgets)
+                if(DEATH_ISHG(deathtype))
+                    PlayerScore_Add(attacker, SP_NADEFRAGS, 1);
 			}
 		}
 		else
@@ -940,20 +994,104 @@ void Obituary (entity attacker, entity inflictor, entity targ, float deathtype)
 	}
 }
 
+void VisualDamage(entity attacker, entity targ, float hdmg, float admg, float htype, vector hitloc);
+
+.float heal_next_particle;
+
+void HealScore(entity targ, entity healer, float heal) {
+    if(targ == healer)
+        return;
+    
+    PlayerScore_Add(healer, SP_HEALING, heal);
+    PlayerScore_Add(healer, SP_SCORE, heal * cvar(strcat("g_healing_score_", gametype_ID_to_Name(game))));
+}
+
+float Heal(entity targ, entity inflictor, entity healer, float heal, float aheal, float hlimit, float alimit, float healtype, float pauserot, float pausearot, vector hitloc) {
+    if(hlimit)  hlimit = min(g_balance_health_limit, hlimit);
+    else        hlimit = g_balance_health_limit;
+    if(alimit)  alimit = min(g_balance_armor_limit,  alimit);
+    else        alimit = g_balance_armor_limit;
+    
+    if(g_clanarena) if(healtype != DEATH_LINKER_SHARE) {
+        float lim = cvar("g_clanarena_heal_limit");
+        hlimit = min(hlimit, lim);
+        alimit = min(alimit, lim);
+    }
+    
+    float silent = (healtype == DEATH_ITEM);
+    
+    if(pauserot  < 0) pauserot  = cvar("g_balance_pause_health_rot");
+    if(pausearot < 0) pausearot = cvar("g_balance_pause_armor_rot");
+    
+    if(roundstate == ROUNDSTATE_OVER)
+        heal = aheal = 0;
+    else {
+        heal  = max(0, min(heal,  hlimit - targ.health));
+        aheal = max(0, min(aheal, alimit - targ.armorvalue));
+    }
+    
+    targ.health += heal;
+    targ.pauserothealth_finished = max(targ.pauserothealth_finished, time + pauserot);
+    
+    targ.armorvalue += aheal;
+    targ.pauserotarmor_finished = max(targ.pauserotarmor_finished, time + pausearot);
+    
+    if(heal || aheal) {
+        float vdtype = VDMG_TYPE_HEAL;
+        
+        if(heal >= 100 || aheal >= 100)
+            vdtype |= VDMG_TYPE_CRIT;
+        else if(DEATH_ISWEAPON(healtype, WEP_CAMPINGRIFLE) && (healtype & HITTYPE_HEADSHOT))
+            vdtype |= VDMG_TYPE_CRIT;
+        
+        VisualDamage(healer, targ, heal, aheal, vdtype, hitloc);
+        HealScore(targ, healer, heal + aheal);
+        
+        if(!silent) {
+            if(time > targ.heal_next_particle) {
+                te_heal(targ);
+                targ.heal_next_particle = time + 0.2;
+            }
+            
+            if(heal)  sound(targ, CHAN_AUTO, "misc/mediumhealth.wav", VOL_BASE, ATTN_NORM);
+            if(aheal) sound(targ, CHAN_AUTO, "misc/armor10.wav", VOL_BASE, ATTN_NORM);
+        }
+    }
+    
+    return heal + aheal;
+}
+
 // these are updated by each Damage call for use in button triggering and such
 entity damage_targ;
 entity damage_inflictor;
 entity damage_attacker;
 
-//<akari>
+float damage_linkmode;
+entity damage_origtarget;
+
 .float ignore_next;
-//</akari>
+.float dmg_jaildm;
+
+void Damage_RecordDamage(entity attacker, float deathtype, float damage);
+
+float IsHeadshot(entity targ, entity attacker, vector hitloc) {
+    // find height of hit on player axis
+    // if above view_ofs and below maxs, and also in the middle half of the bbox, it is head shot
+    
+    vector headmins, headmaxs, org;
+    org = antilag_takebackorigin(targ, time - ANTILAG_LATENCY(attacker));
+    headmins = org + '0.6 0 0' * targ.mins_x + '0 0.6 0' * targ.mins_y + '0 0 1' * (1.3 * targ.view_ofs_z - 0.3 * targ.maxs_z);
+    headmaxs = org + '0.6 0 0' * targ.maxs_x + '0 0.6 0' * targ.maxs_y + '0 0 1' * targ.maxs_z;
+    
+    return trace_hits_box(railgun_start, railgun_end, headmins, headmaxs);
+}
 
 void Damage(entity targ, entity inflictor, entity attacker, float damage, float deathtype, vector hitloc, vector force)
 {
 	float mirrordamage;
 	float mirrorforce;
 	float teamdamage0;
+    float jaildm;
 	entity attacker_save;
 	mirrordamage = 0;
 	mirrorforce = 0;
@@ -963,15 +1101,105 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
     
 	if(gameover || targ.killcount == -666)
 		return;
+    
+    if not(damage_linkmode) {
+        if(targ.hg_shield && deathtype == DEATH_HG_TRANSLOC)
+        if(cvar("g_nadgets_transloc_counters_shield"))
+            damage = cvar("g_nadgets_transloc_damage_shield") * Buffs_NadgetPower(attacker);
+        
+        float medic = Buffs_BuffPower(attacker, BUFF_MEDIC);
+        
+        if(targ.iscreature && medic && (!DEATH_ISSPECIAL(deathtype) || deathtype == DEATH_IGNITE || deathtype == DEATH_ARC)) {
+            if((teams_matter && attacker.team == targ.team) || attacker == targ) {
+                float heal;
+                
+                if(deathtype == DEATH_ARC || deathtype == DEATH_IGNITE)
+                    // arc and ignite scale off the original heal, so leave it as is
+                    heal = damage;
+                else {
+                    heal = damage * cvar("g_buffs_medic_healfactor") * medic;
+                    
+                    if(attacker == targ)
+                        heal *= cvar("g_buffs_medic_selfhealfactor");
+					
+                    W_CampingRifle_RegisterHitForHitstreak(attacker, deathtype);
+
+                    if(damage_headshotbonus)
+                    if(cvar("g_buffs_medic_headshot"))
+                    if(IsHeadshot(targ, attacker, hitloc)) {
+                        heal *= 1 + damage_headshotbonus;
+                        deathtype |= HITTYPE_HEADSHOT;
+                        headshot = TRUE;
+                    }
+                }
+                
+                heal = Buffs_IgniteDamage(targ, attacker, inflictor, heal, deathtype);
+                heal = Heal(targ, inflictor, attacker, heal, 0, cvar("g_buffs_medic_maxhealth"), 0, deathtype, cvar("g_buffs_medic_pauserot"), 0, hitloc);
+                
+                if(heal)
+                    Damage_RecordDamage(attacker, deathtype, heal);
+                
+                targ.hg_plasmalock = 0;
+                
+                if(attacker != targ)
+                    Buffs_VampireDamage(attacker, attacker, heal * cvar("g_buffs_medic_selfhealfactor"), deathtype);
+                
+                if(deathtype != DEATH_ARC && deathtype != DEATH_IGNITE)
+                    Buffs_ArcDamage(targ, attacker, heal, deathtype);
+                return;
+            } else if(!g_clanarena) if(!attacker.hg_shield) if(deathtype != DEATH_ARC) if(deathtype != DEATH_IGNITE)
+                damage = damage * (1 - (1 - cvar("g_buffs_medic_damagefactor")) * medic);
+        }
+        
+        damage_origtarget = targ;
+        if(targ.hg_linker)
+        if((deathtype != HG_TRANSLOC || cvar("g_nadgets_transloc_damage")) && deathtype != HG_GG && !DEATH_ISSPECIAL(deathtype))
+        IF_HG_LINKER_APPLICABLE(targ) {
+            if(teams_matter && targ.team == attacker.team)
+                return;
+            
+            if(cvar("g_nadgets_linker_split_damage")) {
+                damage_linkmode = TRUE;
+                entity e, linklist = findchainentity(hg_linker, targ.hg_linker);
+                float denom;
+                
+                for(e = linklist; e; e = e.chain) IF_HG_LINKER_APPLICABLE(e)
+                    ++denom;
+                
+                if(denom) for(e = linklist; e; e = e.chain) IF_HG_LINKER_APPLICABLE(e) {
+                    float d = damage / denom;
+                    
+                    if(e != targ)
+                        te_csqc_lightningarc(targ.origin, e.origin, FALSE, targ.team);
+                        
+                    damage_origtarget = e;
+                    Damage(e, inflictor, attacker, d * targ.hg_linker.hg_linker_factor, deathtype, hitloc, ((e == targ)? force : 0.5 * vlen(force) * normalize(e.origin - targ.origin)));
+                    
+                    if(targ.hg_linker.owner.scorekeeper)
+                        HealScore(targ, targ.hg_linker.owner, max(0, d - d * targ.hg_linker.hg_linker_factor));
+                }
+                
+                damage_linkmode = FALSE;
+                return;
+            } else {
+                damage = damage * targ.hg_linker.hg_linker_factor;
+            }
+        }
+    }
 
 	// I just feel like there are WAY too many checks for these in this function
 	// By the way, this function is one of the messiest pieces of code here, it could compete with vip.qc ;)
 	float targ_is_player = (targ.classname == "player");
 	float attacker_is_player = (attacker.classname == "player");
-
-	if(g_jailbreak && jb_roundover && targ_is_player)
-		damage = damage * cvar("g_jailbreak_torture_damagefactor");
-		
+    
+    if(g_jailbreak && targ_is_player && jb_roundover)   
+        damage = damage * cvar("g_jailbreak_torture_damagefactor");
+    else {
+        jaildm = CheckJailDM(attacker, targ);
+        if(jaildm)
+            attacker.jb_jaildm_aggressive = TRUE;
+    }
+    
 	local float t_oldhealth = targ.health;
 	local float t_oldarmor = targ.armorvalue;
 
@@ -984,7 +1212,7 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 		attacker_save = attacker;
 
 	local float took_extra;
-
+    
 	if(targ_is_player)
 		if(targ.hook)
 			if(targ.hook.aiment)
@@ -1001,29 +1229,21 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 				return;
 			}
 	}
-
+    
 	if(deathtype == DEATH_KILL || deathtype == DEATH_TEAMCHANGE || deathtype == DEATH_AUTOTEAMCHANGE)
 	{
 		// These are ALWAYS lethal
 		// No damage modification here
 		// Instead, prepare the victim for his death...
 		
-		if(g_freezetag && targ.freezetag_frozen && deathtype != DEATH_KILL)
-		{
-			oldself = self;
-			self = targ;
-			PutClientInServer();
-			self = oldself;
-			return;
-		}
-		
 		targ.armorvalue = 0;
 		targ.spawnshieldtime = 0;
 		targ.health = 0.9; // this is < 1
 		targ.flags -= targ.flags & FL_GODMODE;
+        
 		damage = 100000;
 	}
-	else if(deathtype == DEATH_MIRRORDAMAGE || deathtype == DEATH_NOAMMO || targ.classname == "hg_grenade")
+	else if(deathtype == DEATH_MIRRORDAMAGE || deathtype == DEATH_NOAMMO || targ.classname == "hg_grenade" || deathtype == DEATH_NOISE)
 	{
 		// no processing
 	}
@@ -1049,6 +1269,7 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 					damage = damage * bound(0.1, (skill + 5) * 0.1, 1);
 			
 			if(g_jailbreak)
+            if(!jaildm)
 			if not(DEATH_ISSPECIAL(deathtype)) {
 				if(targ.jb_isprisoned)
 					damage = damage * cvar("g_jailbreak_prisonerdamagefactor_take");
@@ -1068,14 +1289,16 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 				}
 			}
             
-            if(g_jailbreak && (attacker.jb_isprisoned || targ.jb_isprisoned) && deathtype == DEATH_TELEFRAG) {
+            if(deathtype == DEATH_TELEFRAG || (deathtype == HG_TRANSLOC && !cvar("g_nadgets_transloc_damage")))
+            if((g_jailbreak && (attacker.jb_isprisoned || targ.jb_isprisoned)) || (g_vip && ISVIP(targ))) {
                 damage = 0;
                 force = '0 0 0';
             }
 		}
         
 		// nullify damage if teamplay is on
-		if(deathtype != DEATH_TELEFRAG)
+        if(!jaildm)
+		if(deathtype != DEATH_TELEFRAG && deathtype != HG_TRANSLOC && deathtype != HG_GG)
 		if(attacker_is_player)
 		{
 			if(targ_is_player && targ != attacker && (IS_INDEPENDENT_PLAYER(attacker) || IS_INDEPENDENT_PLAYER(targ)))
@@ -1095,6 +1318,8 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 					{
 						if(targ_is_player && targ.deadflag == DEAD_NO)
 						{
+                            float ff = cvar("g_friendlyfire");
+                            if(g_clanarena) ff = ff * cvar("g_clanarena_teamdamage");
 							teamdamage0 = max(attacker.dmg_team, cvar("g_teamdamage_threshold"));
 							attacker.dmg_team = attacker.dmg_team + damage;
 							if(attacker.dmg_team > teamdamage0)
@@ -1102,11 +1327,11 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 							mirrorforce = cvar("g_mirrordamage") * vlen(force);
 							if(g_minstagib)
 							{
-								if(cvar("g_friendlyfire") == 0)
+								if(ff == 0)
 									damage = 0;
 							}
 							else
-								damage = cvar("g_friendlyfire") * damage;
+								damage = ff * damage;
 							// mirrordamage will be used LATER
 						}
 						else
@@ -1124,8 +1349,7 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 			attacker.lms_traveled_distance = cvar("g_lms_campcheck_distance");
 		}
 
-		if((g_vip && vip_soulgem && !vip_started) ||
-		   ((g_freezetag || g_jailbreak) && warmup >= time))
+		if(roundstate != ROUNDSTATE_GAME && !(g_jailbreak && roundstate == ROUNDSTATE_OVER && targ.jb_isprisoned))
 		if(deathtype != DEATH_HURTTRIGGER)
 		{
 			damage = 0;
@@ -1134,7 +1358,7 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 			{
 				force = '0 0 0';
 
-				if(attacker_is_player) if(targ_is_player)
+				if(roundstate != ROUNDSTATE_OVER) if(attacker_is_player) if(targ_is_player)
 					bigprint_spec(attacker, "", "^1The round hasn't started yet, you can't inflict any damage!", 2);
 			}
 
@@ -1193,7 +1417,7 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 					centerprint_spec(targ, strcat(DAMAGE_CENTERPRINT_SPACER, "^3Remaining extra lives: ",ftos(targ.armorvalue)));
 					damage = 0;
 					targ.hitsound += 1;
-					attacker.hitsound += 1; // TODO change this to a future specific hitsound for armor hit
+					attacker.armorhitsound += 1; // TODO change this to a future specific hitsound for armor hit
 				}
 				else
 				{
@@ -1210,7 +1434,7 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 						targ.armorvalue = 0;
 					}
 
-					attacker.hitsound += 1;
+					attacker.armorhitsound += 1;
 					targ.hitsound += 1;
 					targ.ignore_next = 1;
 				}
@@ -1237,7 +1461,7 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 					if(targ == attacker)
 						armordamage *= cvar("g_balance_selfdamagepercent");
 					else
-						attacker.hitsound += 1;
+						attacker.armorhitsound += 1;
 
 					if(armor_passthrough)
 					{
@@ -1273,101 +1497,101 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 				}
 			}
 		}
-
-		if not(DEATH_ISSPECIAL(deathtype))
+        
+		if(g_freeze) if(targ.frozen)
 		{
-			damage *= g_weapondamagefactor;
-			mirrordamage *= g_weapondamagefactor;
-			force = force * g_weaponforcefactor;
-			mirrorforce *= g_weaponforcefactor;
-		}
-
-		if(g_freezetag) if(targ.freezetag_frozen)
-		{
+            if(deathtype == DEATH_HURTTRIGGER || (damage && Freeze_CVar("teleport_out_of_lava") && (deathtype == DEATH_LAVA || deathtype == DEATH_SLIME)))
+                Freeze_RespawnPlayer(targ);
+            
 			damage = 0;
-			force = force * cvar("g_freezetag_frozen_force");
+			force = force * Freeze_CVar("frozen_force");
 
-			if(targ.team != attacker.team || cvar("g_freezetag_melt_teamdamage"))
+			if(targ.team != attacker.team || Freeze_CVar("melt_teamdamage"))
 			{
-				targ.freezetag_meltprogress = 0;
-				targ.freezetag_freezetime = time;
-				targ.freezetag_meltprogress = 0;
-				targ.freezetag_revive_progress = 0;
-			}
-
-			if(deathtype == DEATH_HURTTRIGGER)
-			{
-				oldself = self;
-				self = targ;
-				PutClientInServer();
-				self = oldself;
+				targ.meltprogress = 0;
+				targ.freezetime = time;
+				targ.meltprogress = 0;
+				targ.revprogress = 0;
 			}
 		}
 
-		// apply strength multiplier
-		if ((attacker.items & IT_STRENGTH) && !g_minstagib)
-		{
-			if(targ == attacker)
-			{
-				damage = damage * cvar("g_balance_powerup_strength_selfdamage");
-				force = force * cvar("g_balance_powerup_strength_selfforce");
-			}
-			else
-			{
-				damage = damage * cvar("g_balance_powerup_strength_damage");
-				force = force * cvar("g_balance_powerup_strength_force");
-			}
-		}
+        // apply invincibility multiplier
+        if (targ.items & IT_INVINCIBLE && !g_minstagib)
+            damage = damage * cvar("g_balance_powerup_invincible_takedamage");
 
-		// apply invincibility multiplier
-		if (targ.items & IT_INVINCIBLE && !g_minstagib)
-			damage = damage * cvar("g_balance_powerup_invincible_takedamage");
+        if(deathtype != DEATH_ARC) {
+            if not(DEATH_ISSPECIAL(deathtype))
+            {
+                damage *= g_weapondamagefactor;
+                mirrordamage *= g_weapondamagefactor;
+                force = force * g_weaponforcefactor;
+                mirrorforce *= g_weaponforcefactor;
+            }
+            
+            // apply strength multiplier
+            if ((attacker.items & IT_STRENGTH) && !g_minstagib)
+            {
+                if(targ == attacker)
+                {
+                    damage = damage * cvar("g_balance_powerup_strength_selfdamage");
+                    force = force * cvar("g_balance_powerup_strength_selfforce");
+                }
+                else
+                {
+                    damage = damage * cvar("g_balance_powerup_strength_damage");
+                    force = force * cvar("g_balance_powerup_strength_force");
+                }
+            }
 
-		if (targ == attacker)
-			damage = damage * cvar("g_balance_selfdamagepercent");	// Partial damage if the attacker hits himself
+            if (targ == attacker) {
+                damage = damage * cvar("g_balance_selfdamagepercent");	// Partial damage if the attacker hits himself
+                if(g_clanarena)
+                    damage = damage * cvar("g_clanarena_selfdamage");
+            }
 
-		// CTF: reduce damage/force
-		if(g_ctf)
-		if(targ == attacker)
-		if(targ.flagcarried)
-		{
-			damage = damage * cvar("g_ctf_flagcarrier_selfdamage");
-			force = force * cvar("g_ctf_flagcarrier_selfforce");
-		}
+            // CTF: reduce damage/force
+            if(g_ctf)
+            if(targ == attacker)
+            if(targ.flagcarried)
+            {
+                damage = damage * cvar("g_ctf_flagcarrier_selfdamage");
+                force = force * cvar("g_ctf_flagcarrier_selfforce");
+            }
 
-		if(g_runematch)
-		{
-			// apply strength rune
-			if (attacker.runes & RUNE_STRENGTH)
-			{
-				if(attacker.runes & CURSE_WEAK) // have both curse & rune
-				{
-					damage = damage * cvar("g_balance_rune_strength_combo_damage");
-					force = force * cvar("g_balance_rune_strength_combo_force");
-				}
-				else
-				{
-					damage = damage * cvar("g_balance_rune_strength_damage");
-					force = force * cvar("g_balance_rune_strength_force");
-				}
-			}
-			else if (attacker.runes & CURSE_WEAK)
-			{
-				damage = damage * cvar("g_balance_curse_weak_damage");
-				force = force * cvar("g_balance_curse_weak_force");
-			}
+            if(g_runematch)
+            {
+                // apply strength rune
+                if (attacker.runes & RUNE_STRENGTH)
+                {
+                    if(attacker.runes & CURSE_WEAK) // have both curse & rune
+                    {
+                        damage = damage * cvar("g_balance_rune_strength_combo_damage");
+                        force = force * cvar("g_balance_rune_strength_combo_force");
+                    }
+                    else
+                    {
+                        damage = damage * cvar("g_balance_rune_strength_damage");
+                        force = force * cvar("g_balance_rune_strength_force");
+                    }
+                }
+                else if (attacker.runes & CURSE_WEAK)
+                {
+                    damage = damage * cvar("g_balance_curse_weak_damage");
+                    force = force * cvar("g_balance_curse_weak_force");
+                }
 
-			// apply defense rune
-			if (targ.runes & RUNE_DEFENSE)
-			{
-				if (targ.runes & CURSE_VULNER) // have both curse & rune
-					damage = damage * cvar("g_balance_rune_defense_combo_takedamage");
-				else
-					damage = damage * cvar("g_balance_rune_defense_takedamage");
-			}
-			else if (targ.runes & CURSE_VULNER)
-				damage = damage * cvar("g_balance_curse_vulner_takedamage");
-		}
+                // apply defense rune
+                if (targ.runes & RUNE_DEFENSE)
+                {
+                    if (targ.runes & CURSE_VULNER) // have both curse & rune
+                        damage = damage * cvar("g_balance_rune_defense_combo_takedamage");
+                    else
+                        damage = damage * cvar("g_balance_rune_defense_takedamage");
+                }
+                else if (targ.runes & CURSE_VULNER)
+                    damage = damage * cvar("g_balance_curse_vulner_takedamage");
+            }
+        }
 
 		// count the damage
 		if(attacker)
@@ -1375,37 +1599,29 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 		if(targ.takedamage == DAMAGE_AIM)
 		if(targ != attacker)
 		{
-			if(targ_is_player)
-			if(!DEATH_ISHG(deathtype))
-			{
-				// HEAD SHOT:
-				// find height of hit on player axis
-				// if above view_ofs and below maxs, and also in the middle half of the bbox, it is head shot
-				vector headmins, headmaxs, org;
-				org = antilag_takebackorigin(targ, time - ANTILAG_LATENCY(attacker));
-				headmins = org + '0.6 0 0' * targ.mins_x + '0 0.6 0' * targ.mins_y + '0 0 1' * (1.3 * targ.view_ofs_z - 0.3 * targ.maxs_z);
-				headmaxs = org + '0.6 0 0' * targ.maxs_x + '0 0.6 0' * targ.maxs_y + '0 0 1' * targ.maxs_z;
-				if(trace_hits_box(railgun_start, railgun_end, headmins, headmaxs))
-				{
-					deathtype |= HITTYPE_HEADSHOT;
-				}
-			}
-			else if(targ.classname == "turret_head")
-			{
-				deathtype |= HITTYPE_HEADSHOT;
-			}
+            if(!DEATH_ISHG(deathtype)) if(deathtype != DEATH_IGNITE) if(deathtype != DEATH_MEODP) {
+                if(targ_is_player) {
+                    if(IsHeadshot(damage_origtarget, attacker, hitloc))
+                        deathtype |= HITTYPE_HEADSHOT;
+                } else if(targ.classname == "turret_head") {
+                    deathtype |= HITTYPE_HEADSHOT;
+                }
+            }
+            
 			if(deathtype & HITTYPE_HEADSHOT)
 				damage *= 1 + damage_headshotbonus;
 
-			if(targ_is_player)
+			if(targ.iscreature && targ.deadflag == DEAD_NO && targ.classname != "body")
 			{
-				if(IsDifferentTeam(targ, attacker))
+				if(IsDifferentTeam(targ, attacker) || jaildm)
 				{
 					if(damage > 0)
 					{
 						if(targ.BUTTON_CHAT)
 							attacker.typehitsound += 1;
-						else
+						else if(targ.armorvalue)
+                            attacker.armorhitsound += 1;
+                        else
 							attacker.hitsound += 1;
 
 						damage_goodhits += 1;
@@ -1455,43 +1671,59 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 		else
 			self.velocity = self.velocity * cvar("g_balance_push_velocityinfluence");
 
-		if(sv_speedaward_ownaccel)
-		if(attacker == targ)
-		if(self.classname == "player")
-		{
-			float myvel = vlen(self.velocity);
-			if(myvel > highest_velocity)
-				UpdateHighestVelocity(myvel, self);
-		}
-
 		self.flags &~= FL_ONGROUND;
 		UpdateCSQCProjectile(self);
 	}
 	// apply damage
-	if (damage != 0 || (self.damageforcescale && vlen(force)))
-	if (self.event_damage) {
-		self.event_damage (inflictor, attacker, damage, deathtype, hitloc, force);
+	if(damage || (self.damageforcescale && vlen(force)))
+	if(self.event_damage) {
+        self.dmg_jaildm = jaildm;
+        self.event_damage(inflictor, attacker, damage, deathtype, hitloc, force);
         if(t_oldhealth > self.health) {
-            self.lastdamage = time;
+            if(!teams_matter || self.team != attacker.team) {
+                self.lastdamage = time;
+                if(self.hg_stealth && self.hg_stealthalpha > 0.2) {
+                    self.hg_stealth = 0;
+                    self.hg_stealth_saved = 0;
+                    self.hg_stealthtime = 0; // no action delay if forcefully decloaked
+                }
+            }
             
+            entity e;
             if(g_jailbreak && self.jb_unlock_progress) {
-                entity e; for(e = world; (e = find(e, classname, "jailbreak_controlpoint"));)
+                FOR_EACH_JB_CONTROLPOINT(e)
                     if(e.jb_capturingplayer == self)
                         e.jb_unlock_progress = bound(0, e.jb_unlock_progress - cvar("g_jailbreak_controlpoint_unlock_damage_pushback"), 1);
+            } else if(g_domination && self.dom_captureprogress) {
+                FOR_EACH_DOM_CONTROLPOINT(e)
+                    if(e.dom_capturingplayer == self)
+                        e.dom_captureprogress = bound(0, e.dom_captureprogress - cvar("g_domination_capture_damage_pushback"), 1);
             }
+        }
+        
+        if(attacker_is_player)
+        if(!targ_is_player)
+        if(t_oldhealth >= 0)
+        if(t_oldarmor > targ.armorvalue || t_oldhealth > targ.health) {
+            float dtype = VDMG_TYPE_HIT | VDMG_TYPE_NOTPLAYERTARGET;
+            if(deathtype & HITTYPE_HEADSHOT)
+                dtype |= VDMG_TYPE_CRIT;
+            VisualDamage(attacker, targ, min(rint(t_oldhealth - targ.health), t_oldhealth), min(rint(t_oldarmor - targ.armorvalue), t_oldarmor), dtype, hitloc);
         }
     }
 	self = oldself;
 
-	// Print damage
-	if(g_minstagib) // since I'm too lazy to do this crap the way it should be done, minstagib uses it's own damage indicator
+	if(g_minstagib && targ_is_player && attacker_is_player)
 	{
-		local float olddamage;
+		float olddamage;
 		olddamage = damage;
 		
-		damage = min(damage, t_oldhealth);
-		armordamage = min(armordamage, t_oldarmor);
-
+		damage = max(0, min(t_oldhealth, damage));
+		armordamage = max(0, min(t_oldarmor, armordamage));
+        
+        if(damage || armordamage)
+            VisualDamage(attacker, targ, damage, armordamage, ((deathtype & HITTYPE_HEADSHOT)? VDMG_TYPE_CRIT : VDMG_TYPE_HIT), hitloc);
+        
 		if(took_extra)
 			armordamage = 100;
 
@@ -1509,76 +1741,6 @@ void Damage(entity targ, entity inflictor, entity attacker, float damage, float 
 				hudflash_teamcolor_default_spec(attacker);
 		}
 		
-		if(!cvar("sv_hidedamage")) if(targ.health > 0) if not(g_freezetag && targ.freezetag_frozen)
-		{
-			float i;
-			
-			for(i = 0; i < 2; i++)
-			{
-				local string dmgstring, wpnstring;
-				
-				// To-do: generate prints client-side, send all the crap through a tempentity
-				
-				if(i) // damage
-				{
-					if(!damage)
-						continue;
-					
-					dmgstring = ftos(rint(damage));
-				}
-				else //armor damage
-				{
-					if(!armordamage)
-						continue;
-					
-					dmgstring = strcat("^2(^7", ftos(rint(armordamage)), "^2)");
-				}
-				
-				if(DEATH_ISWEAPON(deathtype, WEP_ROCKET_LAUNCHER))
-					wpnstring = "^1splash";
-				else if(DEATH_ISWEAPON(deathtype, WEP_LASER) || DEATH_ISWEAPON(deathtype, WEP_ELECTRO))
-					wpnstring = "^xFB0laser";
-				else if(deathtype == DEATH_NOAMMO)
-				{
-					if(attacker == targ)
-					if(attacker.ammo_cells <= 0)
-						continue;
-					
-					wpnstring = "^7hook";
-				}
-				else if(DEATH_ISWEAPON(deathtype, WEP_MINSTANEX)) //???
-					wpnstring = "^5insta";
-				else 
-					wpnstring = "^0unknown";
-				
-				if(!cvar("sv_extendfragmessages"))
-					wpnstring = "";
-				
-				if(attacker_is_player) if(attacker != targ)
-				{
-					if(targ.netname)
-						centerprint_spec(attacker, strcat("\x01\x02", targ.netname, " ^3^x550 ^7", dmgstring, " ^x550^3^7 ", wpnstring));
-				}
-				
-				if(targ_is_player)
-				{
-					if(attacker.netname)
-					{
-						if(attacker == targ)
-							centerprint_spec(targ, strcat("\x01\x02", "^xFB0self ", "^x500^1 ^7", dmgstring, " ^1^x500 ", wpnstring));
-						else
-							centerprint_spec(targ, strcat("\x01\x02", attacker.netname, " ^x500^1 ^7", dmgstring, " ^1^x500^7 ", wpnstring));
-					}
-					else
-						centerprint_spec(targ, strcat("\x01\x02", "^x500^1 ^7", dmgstring, " ^1^x500\n"));
-				}
-				
-				//hudflash_default_spec(attacker, '1 1 -1');
-				//hudflash_default_spec(targ, '2 1 -1');
-				//hudflash_spec(attacker, '1 1 -1', HF_DEFAULT_TIME * 1.5, HF_DEFAULT_INT, HF_DEFAULT_ALPHA);
-				hudflash_spec(targ, '2 0.15 -1', HF_DEFAULT_TIME, HF_DEFAULT_INT, HF_DEFAULT_ALPHA);
-			}
-		}
 		damage = olddamage;
 	}
 
@@ -1668,8 +1830,11 @@ void Damage_RecordDamage(entity attacker, float deathtype, float damage)
 {
 	float weaponid;
 	weaponid = DEATH_WEAPONOF(deathtype);
+    
 	if not(inWarmupStage)
 	if(weaponid)
+    if(!DEATH_ISHG(deathtype))
+    if(!g_minstagib || DEATH_ISWEAPON(deathtype, WEP_MINSTANEX))
 	if(clienttype(attacker) == CLIENTTYPE_REAL)
 	{
 		// Track damage done and update the stat to be sent later in g_world.qc
@@ -1678,7 +1843,8 @@ void Damage_RecordDamage(entity attacker, float deathtype, float damage)
 	}
 }
 
-float RadiusDamage_running;
+.float damage_noinfo;
+.float damage_nextarceffect;
 float RadiusDamage (entity inflictor, entity attacker, float coredamage, float edgedamage, float rad, entity ignore, float forceintensity, float deathtype, entity directhitentity)
 // Returns total damage applies to creatures
 {
@@ -1716,10 +1882,10 @@ float RadiusDamage (entity inflictor, entity attacker, float coredamage, float e
 	tfloordmg = cvar("g_throughfloor_damage");
 	tfloorforce = cvar("g_throughfloor_force");
 
-	blastorigin = (inflictor.origin + (inflictor.mins + inflictor.maxs) * 0.5);
+	RadiusDamage_blastorigin = blastorigin = (inflictor.origin + (inflictor.mins + inflictor.maxs) * 0.5);
 	total_damage_to_creatures = 0;
 
-	if(deathtype != (WEP_HOOK | HITTYPE_SECONDARY | HITTYPE_BOUNCE)) // only send gravity bomb damage once
+    if(!inflictor.damage_noinfo && deathtype != (WEP_HOOK | HITTYPE_SECONDARY | HITTYPE_BOUNCE)) // only send gravity bomb damage once
 	{
 		force = inflictor.velocity;
 		if(vlen(force) == 0)
@@ -1742,13 +1908,19 @@ float RadiusDamage (entity inflictor, entity attacker, float coredamage, float e
 		if (targ != inflictor)
 			if (ignore != targ) if(targ.takedamage)
 			{
-				// LordHavoc: measure distance to nearest point on target (not origin)
-				// (this guarentees 100% damage on a touch impact)
-				nearest = NearestPointOnBox(targ, blastorigin);
-				diff = nearest - blastorigin;
-				// round up a little on the damage to ensure full damage on impacts
-				// and turn the distance into a fraction of the radius
-				power = 1 - ((vlen (diff) - 2) / rad);
+                if(targ == directhitentity && cvar("g_blast_directhit_fulldamage"))
+                    power = 1;
+                else {
+    				// LordHavoc: measure distance to nearest point on target (not origin)
+    				// (this guarentees 100% damage on a touch impact)
+                    // Akari: ....... not really.
+    				nearest = NearestPointOnBox(targ, blastorigin);
+    				diff = nearest - blastorigin;
+    				// round up a little on the damage to ensure full damage on impacts
+    				// and turn the distance into a fraction of the radius
+    				power = 1 - ((vlen (diff) - 2) / rad);
+                }
+
 				//bprint(" ");
 				//bprint(ftos(power));
 				//if (targ == attacker)
@@ -1760,20 +1932,26 @@ float RadiusDamage (entity inflictor, entity attacker, float coredamage, float e
 					finaldmg = coredamage * power + edgedamage * (1 - power);
 					if (finaldmg > 0)
 					{
-						local float a;
-						local float c;
-						local float hits;
-						local float total;
-						local float hitratio;
-						local vector hitloc;
+						float a;
+						float c;
+						float hits;
+						float total;
+						float hitratio;
+                        float forcescale;
+						vector hitloc;
+                        
 						center = targ.origin + (targ.mins + targ.maxs) * 0.5;
 						// if it's a player, use the view origin as reference
 						if (targ.classname == "player")
 							center = targ.origin + targ.view_ofs;
 						force = normalize(center - blastorigin);
-						//force = force * (finaldmg / coredamage) * forceintensity;
-						// WHAT? This completely breaks force on low damages, how did it even work before?!
-						force = force * forceintensity;
+                        
+                        if(cvar("g_blast_alwaysfullforce"))
+                            forcescale = 1;
+                        else
+                            forcescale = finaldmg / coredamage;
+                        
+						force = force * forcescale * forceintensity;
 						
 						// test line of sight to multiple positions on box,
 						// and do damage if any of them hit
@@ -1827,10 +2005,11 @@ float RadiusDamage (entity inflictor, entity attacker, float coredamage, float e
 									stat_maxdamage += coredamage;
 								}
 							}
-							if(targ == directhitentity || DEATH_ISSPECIAL(deathtype) || DEATH_ISHG(deathtype))
-								Damage (targ, inflictor, attacker, finaldmg, deathtype, nearest, force);
-							else
-								Damage (targ, inflictor, attacker, finaldmg, deathtype | HITTYPE_SPLASH, nearest, force);
+                            
+                            if(targ == directhitentity || DEATH_ISSPECIAL(deathtype) || DEATH_ISHG(deathtype))
+                                Damage (targ, inflictor, attacker, finaldmg, deathtype, nearest, force);
+                            else
+                                Damage (targ, inflictor, attacker, finaldmg, deathtype | HITTYPE_SPLASH, nearest, force);
 						}
 					}
 				}
@@ -1859,6 +2038,9 @@ float Fire_IsBurning(entity e)
 	return (time < e.fire_endtime);
 }
 
+.float fire_last;
+#define FIRE_DELAY cvar("g_fire_damage_frequency")
+
 float Fire_AddDamage(entity e, entity o, float d, float t, float dt)
 {
 	float dps;
@@ -1868,6 +2050,9 @@ float Fire_AddDamage(entity e, entity o, float d, float t, float dt)
 	{
 		if(e.deadflag)
 			return -1;
+        
+        if(self.jb_proj_ownerstate != JB_PROJ_OWNERSTATE_UNDEFINED)
+            e.jb_proj_ownerstate = self.jb_proj_ownerstate;
 	}
 	else
 	{
@@ -1956,6 +2141,7 @@ float Fire_AddDamage(entity e, entity o, float d, float t, float dt)
 		e.fire_deathtype = dt;
 		e.fire_owner = o;
 		e.fire_hitsound = FALSE;
+        e.fire_last = time - FIRE_DELAY;
 		return d;
 	}
 }
@@ -1964,17 +2150,28 @@ void Fire_ApplyDamage(entity e)
 {
 	float t, d, hi, ty;
 
-	if not(Fire_IsBurning(e))
-		return;
+    if(time - e.fire_last < FIRE_DELAY)
+        return;
 
 	// water and slime stop fire
 	if(e.waterlevel)
 	if(e.watertype != CONTENT_LAVA)
 		e.fire_endtime = 0;
 
-	t = min(frametime, e.fire_endtime - time);
-	d = e.fire_damagepersec * t;
+    if(!e.fire_owner.iscreature)
+        e.fire_endtime = 0;
 
+	if not(Fire_IsBurning(e))
+		return;
+
+	t = min(time - e.fire_last, e.fire_endtime - time);
+    
+    if(t < 0) {
+        backtrace("Abnormal fire damage tick (negative time)");
+        t = 0;
+    }
+    
+	d = e.fire_damagepersec * t;
 	hi = e.fire_owner.hitsound;
 	ty = e.fire_owner.typehitsound;
 	Damage(e, e, e.fire_owner, d, e.fire_deathtype, e.origin, '0 0 0');
@@ -1997,9 +2194,11 @@ void Fire_ApplyDamage(entity e)
 		{
 			t = cvar("g_balance_firetransfer_time") * (e.fire_endtime - time);
 			d = cvar("g_balance_firetransfer_damage") * e.fire_damagepersec * t;
-			Fire_AddDamage(other, e, d, t, DEATH_FIRE);
+			Fire_AddDamage(other, e, d, t, e.fire_deathtype);
 		}
 	}
+    
+    e.fire_last = time;
 }
 
 void Fire_ApplyEffect(entity e)

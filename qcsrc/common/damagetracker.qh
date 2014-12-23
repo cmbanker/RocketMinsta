@@ -1,0 +1,20 @@
+
+#define DTRACK_ENTRIES 128
+#define FOR_DTRACK_ENTRIES(k,i) for(i = 0; i < DTRACK_ENTRIES && k.(dtrack_type[i]); ++i)
+
+#define DTFLAG_DONE 1
+#define DTFLAG_TAKEN 2
+#define DTFLAG_SPEC 4
+#define DTFLAG_OVERWRITE 8
+
+.float dtrack_type[DTRACK_ENTRIES];
+.float dtrack_damage[DTRACK_ENTRIES];
+.float dtrack_totaldamage;
+.float dtrack_highestdamage;
+
+entity DamageTracker_CreateKeeper(entity);
+void DamageTracker_Record(entity, float, float);
+float DamageTracker_Sort(entity);
+void DamageTracker_Wipe(entity);
+string DamageTracker_DamageSourceName(float, float);
+float DamageTracker_TransformDamageSource(float);

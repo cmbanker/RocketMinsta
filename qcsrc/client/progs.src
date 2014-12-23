@@ -16,7 +16,8 @@ csqc_builtins.qc
 ../common/ip2c.qh
 ../common/interpolation.qh
 ../common/dprm.qh
-../common/handgrenades.qh
+../common/nadgets.qh
+../common/buffs.qh
 dprm.qh
 
 ../common/mapinfo.qh
@@ -26,7 +27,11 @@ waypointsprites.qh
 movetypes.qh
 prandom.qh
 bgmscript.qh
+visualdamage.qh
+radio.qh
+buffs.qh
 
+../common/damagetracker.qh
 main.qh
 hudskin.qh
 
@@ -51,7 +56,12 @@ casings.qc
 effects.qc
 wall.qc
 modeleffects.qc
+visualdamage.qc
+radio.qc
+zapper.qc
+buffs.qc
 
+../common/damagetracker.qc
 ../common/gametype.qc
 
 //vehicles/spiderbot.qc
@@ -69,10 +79,12 @@ bgmscript.qc
 
 ../common/dprm.qc
 dprm.qc
+../common/flag_anim.qc
 ../common/util.qc
 ../common/gamecommand.qc
 ../common/mapinfo.qc
 ../common/items.qc
 ../common/ip2c.qc
 ../common/interpolation.qc
-../common/handgrenades.qc
+../common/nadgets.qc
+../common/buffs.qc

@@ -1,10 +1,10 @@
 void SendCSQCNexBeamParticle() {
 	WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
 	WriteByte(MSG_BROADCAST, TE_CSQC_NEXGUNBEAMPARTICLE);
-	
-	WriteCoord(MSG_BROADCAST, w_shotorg_x);
-	WriteCoord(MSG_BROADCAST, w_shotorg_y);
-	WriteCoord(MSG_BROADCAST, w_shotorg_z);
+
+	WriteCoord(MSG_BROADCAST, w_shotorg_visual_x);
+	WriteCoord(MSG_BROADCAST, w_shotorg_visual_y);
+	WriteCoord(MSG_BROADCAST, w_shotorg_visual_z);
 	WriteCoord(MSG_BROADCAST, trace_endpos_x);
 	WriteCoord(MSG_BROADCAST, trace_endpos_y);
 	WriteCoord(MSG_BROADCAST, trace_endpos_z);
@@ -22,6 +22,8 @@ void W_Nex_Attack (void)
 
 	if(yoda && flying)
 		announce(self, "announcer/male/yoda.wav");
+
+    W_SetHitscanVisuals(self, trace_endpos);
 
 	//beam and muzzle flash done on client
 	SendCSQCNexBeamParticle();

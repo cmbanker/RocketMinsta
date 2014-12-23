@@ -14,7 +14,7 @@ oo/base.h
 ../common/items.qh
 ../common/ip2c.qh
 ../common/gametype.qh
-../common/handgrenades.qh
+../common/nadgets.qh
 ../common/dprm.qh
 
 gamecommand.qh
@@ -31,6 +31,7 @@ oo/constructors.h
 oo/implementation.h
 	classes.c
 
+../common/flag_anim.qc
 ../common/util.qc
 ../common/gamecommand.qc
 gamecommand.qc
@@ -45,5 +46,5 @@ nexuiz/util.qc
 ../common/items.qc
 ../common/ip2c.qc
 ../common/gametype.qc            
-../common/handgrenades.qc
+../common/nadgets.qc
 

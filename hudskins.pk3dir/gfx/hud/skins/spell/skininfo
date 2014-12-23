@@ -14,9 +14,10 @@ border_teamcolor_mod 0.1 0.1 0.1
 border_teamcolor_brightness 1
 sector_teamcolor always
 sector_teamcolor_brightness 1
-sector_alpha 0.07
+sector_alpha 0.2
 sector_color 1 1 1
-sector_fill tile
+sector_fill stretch
+sector_gap_screen 0 1
 border_alpha 0.9
 line_color 0 0 0
 line_alpha 0
@@ -36,3 +37,6 @@ progress_mode 1
 extern_image_progress_head gfx/hud/progress_head
 progress_head_color 1 1 1
 progress_head_alpha 0.7
+progress_border_overcharge_alpha 1.2
+progress_border_overcharge_colormod 1 1 1
+progress_border_overcharge_colormul 1

@@ -256,7 +256,7 @@ void InitGameplayMode()
 		fraglimit_override = cvar("g_freezetag_point_limit");
 		leadlimit_override = cvar("g_freezetag_point_leadlimit");
 		timelimit_override = cvar("g_freezetag_timelimit");
-		freezetag_Initialize();
+		FreezeTag_Initialize();
 	}
 
 	if(g_jailbreak)
@@ -267,7 +267,16 @@ void InitGameplayMode()
 		timelimit_override = cvar("g_jailbreak_timelimit");
 		JB_Init();
 	}
-
+    
+    if(g_clanarena)
+    {
+        ActivateTeamplay();
+        fraglimit_override = cvar("g_clanarena_point_limit");
+        leadlimit_override = cvar("g_clanarena_point_leadlimit");
+        timelimit_override = cvar("g_clanarena_timelimit");
+        CA_Initialize();
+    }
+    
 	if(g_assault)
 	{
 		ActivateTeamplay();
@@ -358,7 +367,6 @@ void InitGameplayMode()
 	}
 
 	gamemode_name = gametype_ID_to_LongName(game);
-	gametypetoset = game;
 
 	if(teams_matter)
 		entcs_init();
@@ -745,6 +753,8 @@ void CheckAllowedTeams (entity for_whom)
 			dm = race_teams;
 		else if(g_freezetag)
 			dm = ft_teams;
+        else if(g_clanarena)
+            dm = ca_teams;
 		else
 			dm = 2;
 
@@ -818,7 +828,7 @@ void GetTeamCounts(entity ignore)
 	// FIXME: also find and memorize the lowest-scoring bot on each team (in case players must be shuffled around)
 	// also remember the lowest-scoring player
 
-	FOR_EACH_PLAYER(head)
+	FOR_EACH_CLIENT(head) if(head.iscreature || head.jb_specteam)
 	{
 		if(head != ignore)// && head.netname != "")
 		{
@@ -1604,3 +1614,15 @@ void tdm_init()
 {
 	InitializeEntity(world, tdm_delayedinit, INITPRIO_GAMETYPE);
 };
+
+void SwapTeams(void) {
+    entity o = self;
+    for(self = world; (self = nextent(self));)
+        if(self.teamswap)
+            self.teamswap();
+    self = o;
+}
+
+void SwapTeams_Generic(void) {
+    self.team = TeamCount_NextTeam(self.team);
+}

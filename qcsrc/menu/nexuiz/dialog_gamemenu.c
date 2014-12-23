@@ -28,7 +28,7 @@ void fillNexuizGameMenuDialog(entity me)
 			e.onClick = GotoMainMenu;
 			e.onClickEntity = me;
 	me.TR(me);
-		me.TD(me, 1, me.columns, e = makeNexuizCommandButton("RM Options", '0 0 0', "menu_cmd directmenu RMConfig;", COMMANDBUTTON_CLOSE));
+		me.TD(me, 1, me.columns, e = makeNexuizCommandButton("RM options", '0 0 0', "menu_cmd directmenu RMConfig;", COMMANDBUTTON_CLOSE));
 		setDependent(e, "_rm_server", 1, 1);
 	me.TR(me);
 	me.TR(me);
@@ -37,8 +37,8 @@ void fillNexuizGameMenuDialog(entity me)
 		me.TD(me, 1, me.columns, e = makeNexuizCommandButton("Switch team", '0 0 0', "menu_cmd directmenu TeamSelect;", COMMANDBUTTON_CLOSE));
 		setDependent(e, "_teams_available", 1, 1337);
 	me.TR(me);
-		me.TD(me, 1, me.columns, e = makeNexuizCommandButton("Switch grenade mode", '0 0 0', "menu_cmd directmenu NadeMenu;", COMMANDBUTTON_CLOSE));
-		setDependent(e, "_g_handgrenades_select_available", 1, 1337);
+		me.TD(me, 1, me.columns, e = makeNexuizCommandButton("Switch nadget", '0 0 0', "menu_cmd directmenu NadeMenu;", COMMANDBUTTON_CLOSE));
+		setDependent(e, "_g_nadgets_select_available", 1, 1337);
 	me.TR(me);
 		me.TD(me, 1, me.columns, e = makeNexuizCommandButton("Spectate", '0 0 0', "cmd spectate;", COMMANDBUTTON_CLOSE));
 	me.TR(me);

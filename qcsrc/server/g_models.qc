@@ -145,3 +145,7 @@ void spawnfunc_func_static()            { G_MODEL_INIT      (SOLID_NOT) } // DEP
 // solid brush entities
 void spawnfunc_func_wall()              { G_MODEL_INIT      (SOLID_BSP) } // Q1 name
 void spawnfunc_func_clientwall()        { G_CLIENTMODEL_INIT(SOLID_BSP) } // brush entity (WARNING: MISPREDICTED)
+
+void spawnfunc_advertisement() {
+    spawnfunc_func_wall();
+}

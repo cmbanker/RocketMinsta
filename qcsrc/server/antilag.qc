@@ -2,7 +2,6 @@
 .vector antilag_origins[ANTILAG_MAX_ORIGINS];
 .float antilag_times[ANTILAG_MAX_ORIGINS];
 .float antilag_index;
-.vector antilag_saved_origin;
 
 .float antilag_debug;
 

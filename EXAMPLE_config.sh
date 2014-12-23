@@ -1,11 +1,18 @@
 #!/bin/bash
 
-# Path to your Nexuiz data directory. Typically $HOME/.nexuiz/data
-NEXDATA="$HOME/.nexuiz/data"
+# Build output directory. You can put your webserver root here to have the files be automatically downloadable.
+BUILDDIR="build"
 
-# Paths where the compiled mod files will be installed
-SVPROGS="$NEXDATA/rocketminsta_sv.dat"
-CSPROGS="$NEXDATA/rocketminsta_cl.dat"
+# Additional dirs to link the built files to from the original build directory. Typically $HOME/.nexuiz/data
+# Warning: already existing RocketMinsta files will be overwritten
+# Set to an empty string to disable linking
+LINKDIRS=("$HOME/.nexuiz/data")
+
+# File name for the compiled server QC module
+SVPROGS="rocketminsta_sv.dat"
+
+# File name for the compiled client QC module
+CSPROGS="rocketminsta_cl.dat"
 
 # List of QuakeC compillers the script will attempt to use
 # Full and relative paths are allowed
@@ -31,10 +38,17 @@ BUILDPKG_CUSTOM=(-)
 # These are packages WITHOUT o_ or c_ prefixes, do not touch this option unless you really know what are you doing
 IGNOREPKG=(-)
 
+# Pack the client QC program for transfering over http together with other data packages
+# Creates some redundancy, but is more reliable than the udp-based csqc transfer of DarkPlaces
+PACKCSQC=1
+
 # If this option is enabled, built packages will be stored and referenced later when you rebuild the mod,
 # to save time by not rebuilding the same package over and over again. But if you made changes to the package,
 # it will be, of course, rebuilt. This option is only useful if you're a developer who constantly needs to rebuild the mod
 CACHEPKGS=0
+
+# Directory to cache the packages
+CACHEDIR="pkgcache"
 
 # Like CACHEPKGS, but caches compilled QuakeC code
 CACHEQC=0

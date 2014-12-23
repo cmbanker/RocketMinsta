@@ -111,6 +111,10 @@ float TeamScore_Add(entity player, float scorefield, float score)
 	return TeamScore_AddToTeam(player.team, scorefield, score);
 }
 
+float TeamScore_Get(float t, float scorefield) {
+    return teamscorekeepers[t - 1].(teamscores[scorefield]);
+}
+
 float TeamScore_Compare(entity t1, entity t2)
 {
 	if(!t1 || !t2) return (!t2) - !t1;
@@ -205,11 +209,10 @@ float PlayerScore_SendEntity(entity to, float sendflags)
 	WriteByte(MSG_ENTITY, ENT_CLIENT_SCORES);
 	WriteByte(MSG_ENTITY, num_for_edict(self.owner));
 
-	longflags = 0;
-	for(i = 0, p = 1; i < MAX_SCORE; ++i, p *= 2)
-		if(i != SP_JOINTIME)
-			if(self.scores[i] > 127 || self.scores[i] <= -128)
-				longflags |= p;
+    longflags = 0;
+    for(i = 0, p = 1; i < MAX_SCORE; ++i, p *= 2)
+        if(self.scores[i] > 127 || self.scores[i] <= -128)
+            longflags |= p;
 
 #if MAX_SCORE <= 8
 	WriteByte(MSG_ENTITY, sendflags);
@@ -221,21 +224,16 @@ float PlayerScore_SendEntity(entity to, float sendflags)
 	WriteInt24_t(MSG_ENTITY, sendflags);
 	WriteInt24_t(MSG_ENTITY, longflags);
 #endif
-	for(i = 0, p = 1; i < MAX_SCORE; ++i, p *= 2)
-		if(sendflags & p)
-		{
-			if(i == SP_JOINTIME) // haha
-			{
-				WriteString(MSG_ENTITY, ftos(time));
-				WriteString(MSG_ENTITY, ftos(self.scores[i]));
-			}
-			else if(longflags & p)
-				WriteInt24_t(MSG_ENTITY, self.scores[i]);
-			else
-				WriteChar(MSG_ENTITY, self.scores[i]);
-		}
 
-	return TRUE;
+    for(i = 0, p = 1; i < MAX_SCORE; ++i, p *= 2)
+        if(sendflags & p) {
+            if(longflags & p)
+                WriteInt24_t(MSG_ENTITY, self.scores[i]);
+            else
+                WriteChar(MSG_ENTITY, self.scores[i]);
+        }
+
+    return TRUE;
 }
 
 void PlayerScore_Clear(entity player)
@@ -270,6 +268,9 @@ void Score_ClearAll()
 			continue;
 		for(i = 0; i < MAX_SCORE; ++i)
 		{
+            if(i == SP_COUNTRY || i == SP_NADEMODE)
+                continue;
+            
 			if(sk.(scores[i]) != 0)
 				if(scores_label[i] != "")
 					sk.SendFlags |= pow(2, i);
@@ -352,6 +353,52 @@ float PlayerScore_Set(entity player, float scorefield, float score) {
 	s.(scores[scorefield]) = score;
 	
 	return score;
+}
+
+float PlayerScore_SetFlags(entity player, float flg) {
+    entity s = player.scorekeeper;
+
+    if(!s) {
+        if(gameover)
+            return 0;
+        error("Setting score of unknown player!");
+    }
+
+    float oflg = s.(scores[SP_FLAGS]);
+
+    if(oflg & flg != flg) {
+        oflg |= flg;
+        s.(scores[SP_FLAGS]) = oflg;
+        s.SendFlags |= pow(2, SP_FLAGS);
+    }
+
+    return oflg;
+}
+
+float PlayerScore_UnsetFlags(entity player, float flg) {
+    entity s = player.scorekeeper;
+
+    if(!s) {
+        if(gameover)
+            return 0;
+        error("Setting score of unknown player!");
+    }
+
+    float oflg = s.(scores[SP_FLAGS]);
+
+    if(oflg & flg) {
+        oflg &~= flg;
+        s.(scores[SP_FLAGS]) = oflg;
+        s.SendFlags |= pow(2, SP_FLAGS);
+    }
+
+    return oflg;
+}
+
+float PlayerScore_SetFlagsBoolean(entity player, float flg, float b) {
+    if(b)
+        return PlayerScore_SetFlags(player, flg);
+    return PlayerScore_UnsetFlags(player, flg);
 }
 
 float PlayerTeamScore_Add(entity player, float pscorefield, float tscorefield, float score)

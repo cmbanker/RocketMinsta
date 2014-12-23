@@ -1,0 +1,4 @@
+
+.float radio_starttime;
+
+void Net_ReadRadio(void);

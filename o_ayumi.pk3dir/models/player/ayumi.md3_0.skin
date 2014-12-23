@@ -1,0 +1,12 @@
+h_face,models/player/ayumi/head
+h_eyes,models/player/ayumi/eyes
+h_hair,models/player/ayumi/hair_black
+h_neko,models/player/ayumi/null
+
+l_legs,models/player/ayumi/body
+l_skirt,models/player/ayumi/skirt
+l_boots,models/player/ayumi/boots
+l_jet,models/player/ayumi/jettest
+
+u_torso,models/player/ayumi/body
+u_shirt,models/player/ayumi/shirt_bright

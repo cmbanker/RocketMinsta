@@ -294,6 +294,7 @@ void W_ThrowWeapon(vector velo, vector delta, float doreduce)
 	}
 };
 
+.float w_instaswitch;
 // Bringed back weapon frame
 void W_WeaponFrame()
 {
@@ -324,12 +325,18 @@ void W_WeaponFrame()
 	{
 		if (self.weaponentity.state == WS_CLEAR)
 		{
+            float r = 1;
+            if(self.w_instaswitch) {
+                self.w_instaswitch = FALSE;
+                r = 0;
+            }
+            
 			setanim(self, self.anim_draw, FALSE, TRUE, TRUE);
 			self.weaponentity.state = WS_RAISE;
 			weapon_action(self.switchweapon, WR_SETUP);
 			// VorteX: add player model weapon select frame here
 			// setcustomframe(PlayerWeaponRaise);
-			weapon_thinkf(WFRAME_IDLE, cvar("g_balance_weaponswitchdelay"), w_ready);
+			weapon_thinkf(WFRAME_IDLE, cvar("g_balance_weaponswitchdelay") * r, w_ready);
 			weapon_boblayer1(PLAYER_WEAPONSELECTION_SPEED, '0 0 0');
 		}
 		else if (self.weaponentity.state == WS_READY)

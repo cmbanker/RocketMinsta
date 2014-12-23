@@ -191,6 +191,7 @@ void cvar_changes_init()
 		// internal
 		BADPREFIX("csqc_");
 		BADPREFIX("cvar_check_");
+        BADPREFIX("sv_world");
 		BADCVAR("gamecfg");
 		BADCVAR("g_configversion");
 		BADCVAR("g_maplist_index");
@@ -211,6 +212,7 @@ void cvar_changes_init()
 		BADPREFIX("v_");
 		BADPREFIX("vid_");
 		BADPREFIX("crosshair");
+        BADPREFIX("rm_");
 		BADCVAR("mod_q3bsp_lightmapmergepower");
 		BADCVAR("mod_q3bsp_nolightmaps");
 
@@ -226,6 +228,11 @@ void cvar_changes_init()
 		BADPREFIX("sv_eventlog");
 		BADPREFIX("sv_logscores_");
 		BADPREFIX("sv_master");
+        BADPREFIX("irc_");
+        BADPREFIX("sv_ircbot");
+        BADPREFIX("sv_gotoserver_");
+        BADPREFIX("sv_vote_");
+        BADPREFIX("sv_ip2country");
 		BADCVAR("g_banned_list");
 		BADCVAR("log_dest_udp");
 		BADCVAR("log_file");
@@ -233,7 +240,6 @@ void cvar_changes_init()
 		BADCVAR("port");
 		BADCVAR("savedgamecfg");
 		BADCVAR("sv_heartbeatperoid");
-		BADCVAR("sv_vote_master_password");
 		BADCVAR("sys_colortranslation");
 		BADCVAR("sys_specialcharactertranslation");
 		BADCVAR("timestamps");
@@ -418,6 +424,57 @@ void InfoMessages_Init()
 	e.nextthink = time + cvar("sv_infomessages") * 60;
 }
 
+.string modefilter;
+.float keepspawn;
+// fteqcc segfaults on local arrays apparently
+float modefilter_found[5];
+
+void ForceModeSpawns(void) {
+    entity s, first;
+    float i, n, idx;
+    
+    first = findchain(classname, "info_player_deathmatch");
+    for(s = first; s; s = s.chain) {
+        dprint("Processing spot ", etos(s), " at ", vtos(s.origin), ": ");
+        
+        if(s.modefilter == "") {
+            dprint("no modefilter\n");
+            continue;
+        }
+        
+        n = tokenizebyseparator(s.modefilter, " ");
+        for(i = 0; i < n; ++i) if(gametype_Name_to_ID(argv(0)) == game) {
+            dprint("supports ", gametype_ID_to_Name(game), "\n");
+            idx = Team_Index(s.team)+1;
+            modefilter_found[idx] = TRUE;
+            s.keepspawn = TRUE;
+            break;
+        }
+        
+        if(i == n)
+            dprint("doesn't support ", gametype_ID_to_Name(game), "\n");
+    }
+    
+    for(s = first; s; s = s.chain) {
+        dprint("Checking removal for spot ", etos(s), " at ", vtos(s.origin), ": ");
+        
+        idx = Team_Index(s.team)+1;
+        if(modefilter_found[idx] || s.modefilter) {
+            if not(s.keepspawn) {
+                s.think = SUB_Remove;
+                s.nextthink = time;
+                dprint("removal passed\n");
+            } else {
+                dprint("spot supports current gametype\n");
+            }
+        } else {
+            dprint("no modefilter spots for this team (", ftos(idx), ")\n");
+        }
+    }
+}
+
+.float zapper_heat;
+
 void spawnfunc_worldspawn (void)
 {
 	float fd, l, i, j, n;
@@ -427,8 +484,11 @@ void spawnfunc_worldspawn (void)
 	cvar_string = cvar_string_builtin;
 	cvar_set = cvar_set_builtin;
 	dprint_load(); // load dprint status from cvar
-	
-	RM_CvarCompat();
+
+    RM_CvarCompat();
+    sv_damagestats = cvar("sv_damagestats");
+
+    registercvar("g_gametypename", "");
 	
 	// Akari: it is better to define the new gametype cvars here instead of rocketminsta.cfg, because if rocketminsta.cfg is executed at run-time followed by a restart, things might screw up
 	registercvar("g_freezetag", "0");
@@ -438,9 +498,9 @@ void spawnfunc_worldspawn (void)
 	registercvar("g_inf", "0");
 	registercvar("g_rps", "0");
 	registercvar("g_jailbreak", "0");
+    registercvar("g_clanarena", "0");
 	registercvar("g_no", "0");
-	
-	
+    
 /*
  - now unused
     registercvar("_sv_rm_lastgametype", "");
@@ -451,12 +511,12 @@ void spawnfunc_worldspawn (void)
 	registercvar ("_sv_rm_lastvote", "0");
 	registercvar ("_sv_rm_lastservertime", "0");
 	cvar_set ("_sv_rm_lastvote", ftos (cvar ("_sv_rm_lastvote") - cvar ("_sv_rm_lastservertime")));
-
-	sv_speedaward_ownaccel = cvar("sv_speedaward_ownaccel");
+    
 	sv_showspecs_extra = cvar("sv_showspecs_extra");
 	sv_showfps = cvar("sv_showfps");
 	sv_oldfag = cvar("sv_oldfag");
-	
+	sv_shownames = cvar("sv_shownames");
+
 	if(world_already_spawned)
 		error("world already spawned - you may have EXACTLY ONE worldspawn!");
 	world_already_spawned = TRUE;
@@ -551,6 +611,16 @@ void spawnfunc_worldspawn (void)
 	Map_MarkAsRecent(mapname);
 
 	precache_model ("null"); // we need this one before InitGameplayMode
+    
+    sv_nicehealth = cvar("sv_nicehealth");
+    
+    MapInfo_Enumerate();
+    registercvar("_sv_rm_nextgametype", "");
+    s = cvar_string("_sv_rm_nextgametype");
+    if(s != "")
+        GameCommand(strcat("gametype ", s));
+    cvar_set("_sv_rm_nextgametype", "");
+    
 	InitGameplayMode();
 	readlevelcvars();
 	GrappleHookInit();
@@ -620,7 +690,6 @@ void spawnfunc_worldspawn (void)
 
 	Ban_LoadBans();
 
-	MapInfo_Enumerate();
 	MapInfo_FilterGametype(gametype_ID_to_MapID(game), MapInfo_CurrentFeatures(), MapInfo_RequiredFlags(), MapInfo_ForbiddenFlags(), 1);
 
 	if(whichpack(strcat("maps/", mapname, ".cfg")) != "")
@@ -660,6 +729,8 @@ void spawnfunc_worldspawn (void)
 
 	WeaponStats_Init();
 
+    addstat(STAT_ROUNDSTATE, AS_INT, roundstate_stat);
+    addstat(STAT_QUEUE, AS_INT, joinqueue);
 	addstat(STAT_WEAPONS, AS_INT, weapons);
 	addstat(STAT_SWITCHWEAPON, AS_INT, switchweapon);
 	addstat(STAT_GAMESTARTTIME, AS_FLOAT, stat_game_starttime);
@@ -676,35 +747,22 @@ void spawnfunc_worldspawn (void)
 	addstat(STAT_LEADLIMIT, AS_FLOAT, stat_leadlimit);
 	addstat(STAT_BULLETS_LOADED, AS_INT, campingrifle_bulletcounter);
 	addstat(STAT_BULLETS_MAX, AS_INT, campingrifle_bulletlimit);
-
-	if(g_freezetag)
-	{
-		addstat(STAT_REDALIVE, AS_INT, redalive_stat);
-		addstat(STAT_BLUEALIVE, AS_INT, bluealive_stat);
-		addstat(STAT_YELLOWALIVE, AS_INT, yellowalive_stat);
-		addstat(STAT_PINKALIVE, AS_INT, pinkalive_stat);
-		addstat(STAT_FROZEN, AS_INT, freezetag_frozen);
-		//addstat(STAT_REVIVE_PROGRESS, AS_FLOAT, freezetag_revive_progress);
-		
-		if(g_soulmates)
-			addstat(STAT_SM_HASGEM, AS_INT, sm_canattach);
-	}
-
+    addstat(STAT_ZAPPER_HEAT, AS_FLOAT, zapper_heat);
+    
     if(g_domination)
     {
         addstat(STAT_TOTALPOINTS, AS_INT, totalpoints_stat);
         addstat(STAT_REDPOINTS, AS_INT, redpoints_stat);
         addstat(STAT_BLUEPOINTS, AS_INT, bluepoints_stat);
+        addstat(STAT_CAPTURE_PROGRESS, AS_FLOAT, dom_captureprogress);
     }
-
-	if(g_freezetag || g_domination)
-		addstat(STAT_REVIVE_PROGRESS, AS_FLOAT, freezetag_revive_progress);
     
 	addstat(STAT_MINSTA, AS_INT, g_minstagib_stat);
 
-	if(g_handgrenades)
+	if(g_nadgets)
         HG_Init();
-
+    Term_Init();
+    
 	next_pingtime = time + 5;
 	InitializeEntity(self, cvar_changes_init, INITPRIO_CVARS);
 
@@ -715,8 +773,9 @@ void spawnfunc_worldspawn (void)
 	{
 		if(MapInfo_Get_ByID(i))
 			if not(MapInfo_Map_flags & (MAPINFO_FLAG_HIDDEN | MAPINFO_FLAG_FORBIDDEN))
+            if(ListContains(cvar_string("g_maplist"), MapInfo_Map_bspname, " "))
 			{
-				if(mod(i, 2))
+				if(mod(j, 2))
 					col = "^2";
 				else
 					col = "^3";
@@ -748,26 +807,16 @@ void spawnfunc_worldspawn (void)
 	ClientInit_Spawn();
 	RandomSeed_Spawn();
 
+    cvar_set("g_gametypename", gametype_ID_to_Name(game));
+
 	localcmd("\n_sv_hook_gamestart ", gametype_ID_to_Name(game), ";");
+    localcmd("\nsv_hook_rmcustom_gamestart ", gametype_ID_to_Name(game), ";");
 
 	localcmd("exec startup_allmaps.cfg;");
 	localcmd(strcat("exec startup_map_", mapname, ".cfg;"));
 
 	world_initialized = 1;
-
-	sys_frametime = (cvar("sys_ticrate") * cvar("slowmo"));
-
-	if(sv_speedaward_ownaccel)
-	{
-		highest_velocity = stof(db_get(ServerProgsDB, strcat(GetMapname(), "/speedaward/speed_ownaccel")));
-		highest_velocity_name = strzone(db_get(ServerProgsDB, strcat(GetMapname(), "/speedaward/netname_ownaccel")));
-	}
-	else
-	{
-		highest_velocity = stof(db_get(ServerProgsDB, strcat(GetMapname(), "/speedaward/speed")));
-		highest_velocity_name = strzone(db_get(ServerProgsDB, strcat(GetMapname(), "/speedaward/netname")));
-	}
-
+    
 	if(cvar("timelimit") < 0)
 		cvar_set("timelimit", "20");
 
@@ -801,12 +850,34 @@ void spawnfunc_worldspawn (void)
 		localcmd("\nmenu_cmd sync\n");
 	}
 	
+    Freeze_Init();
+    Buffs_Init();
+    
     sv_dps = cvar("sv_dps");
     g_allow_oldnexbeam = cvar("g_allow_oldnexbeam");
     sv_ready_restart_after_countdown = cvar("sv_ready_restart_after_countdown");
+    sv_scoreboard_heal_column = cvar("sv_scoreboard_heal_column");
     whatsgoingon = ISFAGGOTMAP(mapname);
     
-	DPRM_Start();
+    InitializeEntity(world, ForceModeSpawns, INITPRIO_LAST);
+    if(!g_jailbreak)
+        InitializeEntity(world, JB_NonJBInit, INITPRIO_LAST);
+    
+    if(cvar("sv_showaccuracy")) {
+        if(g_minstagib)
+            sv_showacc = TRUE;
+        else for(i = WEP_FIRST; i < WEP_COUNT; ++i)
+            if(g_weaponarena == pow(2, i-1)) {
+                sv_showacc = TRUE;
+                break;
+            }
+    }
+    
+    defer(0, fix_team_spawns);
+    
+    IRC_Init();
+    DPRM_Start();
+    Radio_Init();
 }
 
 void spawnfunc_light (void)
@@ -1188,57 +1259,45 @@ void IntermissionThink()
 	if(!mapvote_initialized)
 		if (time < intermission_exittime + 10 && !self.BUTTON_ATCK && !self.BUTTON_JUMP && !self.BUTTON_ATCK2 && !self.BUTTON_HOOK && !self.BUTTON_USE)
 			return;
-
+            
 	MapVote_Start();
 };
 
 /*
 ============
-FindIntermission
+FindIntermissionViewport
 
 Returns the entity to view from
 ============
 */
-/*
-entity FindIntermission()
+
+entity FindIntermissionViewport(void)
 {
-	local	entity spot;
-	local	float cyc;
-
-// look for info_intermission first
-	spot = find (world, classname, "info_intermission");
-	if (spot)
-	{	// pick a random one
-		cyc = random() * 4;
-		while (cyc > 1)
-		{
-			spot = find (spot, classname, "info_intermission");
-			if (!spot)
-				spot = find (spot, classname, "info_intermission");
-			cyc = cyc - 1;
-		}
-		return spot;
-	}
-
-// then look for the start position
-	spot = find (world, classname, "info_player_start");
-	if (spot)
-		return spot;
-
-// testinfo_player_start is only found in regioned levels
-	spot = find (world, classname, "testplayerstart");
-	if (spot)
-		return spot;
-
-// then look for the start position
-	spot = find (world, classname, "info_player_deathmatch");
-	if (spot)
-		return spot;
-
-	//objerror ("FindIntermission: no spot");
-	return world;
-};
-*/
+    entity spot;
+    
+    // see if we have any map-defined viewports and use a random one
+    RandomSelection_Init();
+    for(spot = world; (spot = nextent(spot));) {
+        if(spot.classname == "info_player_intermission" || spot.classname == "info_intermission")
+            RandomSelection_Add(spot, 0, string_null, 1, 1);
+    }
+    
+    if(RandomSelection_chosen_ent)
+        return RandomSelection_chosen_ent;
+    
+    // try to view from the jail
+    for(spot = world; (spot = find(spot, classname, "info_jailbreak_jailcamera"));)
+        RandomSelection_Add(spot, 0, string_null, 1, 1);
+    
+    if(RandomSelection_chosen_ent)
+        return RandomSelection_chosen_ent;
+    
+    // fall back to player spawn points
+    for(spot = world; (spot = find(spot, classname, "info_player_deathmatch"));)
+        RandomSelection_Add(spot, 0, string_null, 1, 1);
+    
+    return RandomSelection_chosen_ent;
+}
 
 /*
 ===============================================================================
@@ -1400,6 +1459,9 @@ void NextLevel()
 	float score;
 	float f;
 
+    if(!realclients) if(!cvar("g_endmatch"))
+        return;
+
 	gameover = TRUE;
 
 	intermission_running = 1;
@@ -1417,8 +1479,13 @@ void NextLevel()
 	// done in FixIntermission
 	*/
 
-	//pos = FindIntermission ();
-
+	intermission_viewport = FindIntermissionViewport();
+    
+    if(intermission_viewport) {
+        cvar_settemp("sv_cullentities_pvs", "0");
+        cvar_settemp("sv_cullentities_trace", "0");
+    }
+    
 	VoteReset();
 
 	DumpStats(TRUE);
@@ -1426,7 +1493,8 @@ void NextLevel()
 	if(cvar("sv_eventlog"))
 		GameLogEcho(":gameover");
 
-	GameLogClose();
+    IRC_Announce_GameOver();
+    GameLogClose();
 
 	FOR_EACH_CLIENT(other)
 	{
@@ -1434,7 +1502,14 @@ void NextLevel()
 
 		if(other.winning)
 			bprint(other.netname, " ^7wins.\n");
-	}
+        
+        if(other.iscreature && intermission_viewport && intermission_exittime > time) {
+            SetCamera(other, intermission_viewport, -1);
+            other.angles = intermission_viewport.angles;
+            other.angles_z = 0;
+            other.fixangle = TRUE;
+        }
+    }
 
 	minTotalFrags = 0;
 	maxTotalFrags = 0;
@@ -1459,7 +1534,7 @@ void NextLevel()
 	if(cvar("g_campaign"))
 		CampaignPreIntermission();
 
-	localcmd("\nsv_hook_gameend;");
+	localcmd("\nsv_hook_gameend; sv_hook_rmcustom_gameend;");
 
 	// WriteByte (MSG_ALL, SVC_INTERMISSION);
 };
@@ -1968,7 +2043,7 @@ void CheckRules_World()
 {
 	float timelimit;
 	float fraglimit;
-
+    
 	VoteThink();
 	MapVote_Think();
 
@@ -1996,9 +2071,9 @@ void CheckRules_World()
 	
 	if(cvar("g_endmatch"))
 	{
-		cvar_set("g_endmatch", "0");
 		print("^1Endmatching the game\n");
 		NextLevel();
+		cvar_set("g_endmatch", "0");
 		return;
 	}
 
@@ -2209,24 +2284,7 @@ float DoNextMapOverride()
 	if(cvar_string("nextmap") != "")
 		if(MapInfo_CheckMap(cvar_string("nextmap")))
 		{
-			if(gametypevote)
-				return FALSE;
-			
 			Map_Goto_SetStr(cvar_string("nextmap"));
-			
-			if(mapvote_initialized)
-			{
-				if(cvar("sv_vote_gametype")) if(cvar("sv_vote_gametype_overplayed_strict"))
-				{
-					if(GameTypeVote_AvailabilityStatus(gametype_ID_to_Name(gametypetoset)) != GTV_AVAILABLE)
-					{
-						choosenmap = strzone(cvar_string("nextmap"));
-						//GameTypeVote_Start();
-						return FALSE;
-					}
-				}
-			}
-			
 			alreadychangedlevel = TRUE;
 			Map_Goto();
 			return TRUE;
@@ -2247,7 +2305,7 @@ void MapVote_ClearAllVotes()
 		other.mapvote = 0;
 }
 
-string MapVote_Suggest(string m)
+string MapVote_Suggest(string m, float ismaster)
 {
 	float i;
 	if(m == "")
@@ -2257,11 +2315,12 @@ string MapVote_Suggest(string m)
 	if(mapvote_initialized)
 		return "Can't suggest - voting is already in progress!";
 	m = MapInfo_FixName(m);
-	if(!m)
+	if(!m || !ListContains(cvar_string("g_maplist"), m, " "))
 		return "The map you suggested is not available on this server.";
-	if(!cvar("g_maplist_votable_override_mostrecent"))
+	if(!cvar("g_maplist_votable_override_mostrecent") && !ismaster)
 		if(Map_IsRecent(m))
 			return "This server does not allow for recent maps to be played again. Please be patient for some rounds.";
+    
 
 	if(!MapInfo_CheckMap(m))
 		return "The map you suggested does not support the current game mode.";
@@ -2304,6 +2363,9 @@ string GameTypeVote_GetOptions();
 float GameTypeVote_AvailabilityStatus_ForMap(string, string);
 float MapIsPlayable(string map_name)
 {
+    if(!ListContains(cvar_string("g_maplist"), map_name, " "))
+        return 0;
+    
 	if(!cvar("sv_vote_gametype"))
 		// if gametype voting isn't enabled, the server will stay on the current gametype
 		// so let's hide any map that isn't allowed in the current mode
@@ -2557,10 +2619,12 @@ float MapVote_Finished(float mappos)
 	FOR_EACH_REALCLIENT(other)
 		FixClientCvars(other);
 
-
-	if(!cvar("sv_vote_gametype"))
+	if(!cvar("sv_vote_gametype") || hack_forcenextmap)
 	{
-		Map_Goto_SetStr(mapvote_maps[mappos]);
+        if(cvar_string("nextmap") != "")
+            Map_Goto_SetStr(cvar_string("nextmap"));
+        else
+            Map_Goto_SetStr(mapvote_maps[mappos]);
 		Map_Goto();
 		alreadychangedlevel = TRUE;
 		return TRUE;
@@ -2841,7 +2905,7 @@ float GameTypeVote_Finished(float pos)
 	localcmd("gametype ", mapvote_maps[pos], "\n");
 	if(cvar_string("nextmap") != "")
 		Map_Goto_SetStr(cvar_string("nextmap"));
-	Map_Goto();
+	defer(0.2, Map_Goto);
 	alreadychangedlevel = TRUE;
 	return TRUE;
 }
@@ -2919,7 +2983,6 @@ string GotoMap(string m)
 		return "Map switch will happen after scoreboard.";
 }
 
-
 void EndFrame()
 {
 	float altime;
@@ -2941,6 +3004,8 @@ void EndFrame()
 					else
 						play2(self, RM_SOUND_KILL);
 				}
+                else if(self.enemy.armorhitsound)
+                    play2(self, "misc/armorhit.wav");
 				else if(self.enemy.hitsound)
 					play2(self, "misc/hit.wav");
 			}
@@ -2958,6 +3023,8 @@ void EndFrame()
 					else
 						play2(self, RM_SOUND_KILL);
 				}
+                else if(self.armorhitsound)
+                    play2(self, "misc/armorhit.wav");
 				else if(self.hitsound)
 					play2(self, "misc/hit.wav");
 			}
@@ -2975,6 +3042,7 @@ void EndFrame()
 		self.typehitsound = FALSE;
 		self.killsound = FALSE;
 		self.instakillsound = FALSE;
+        self.armorhitsound = FALSE;
 		antilag_record(self, altime);
 	}
 }
@@ -3060,19 +3128,7 @@ void SV_Shutdown()
 		print("Saving persistent data...\n");
 		Ban_SaveBans();
 		if(!sv_cheats)
-		{
-			if(sv_speedaward_ownaccel)
-			{
-				db_put(ServerProgsDB, strcat(GetMapname(), "/speedaward/speed_ownaccel"), ftos(highest_velocity));
-				db_put(ServerProgsDB, strcat(GetMapname(), "/speedaward/netname_ownaccel"), highest_velocity_name);
-			}
-			else
-			{
-				db_put(ServerProgsDB, strcat(GetMapname(), "/speedaward/speed"), ftos(highest_velocity));
-				db_put(ServerProgsDB, strcat(GetMapname(), "/speedaward/netname"), highest_velocity_name);
-			}
 			db_save(ServerProgsDB, "server.db");
-		}
 		IP2C_Shutdown();
 		if(cvar("developer"))
 			db_save(TemporaryDB, "server-temp.db");

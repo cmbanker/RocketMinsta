@@ -5,14 +5,47 @@ void trigger_teleport_use()
 }
 
 float tdeath_hit;
+float tdeath_deathtype;
 void tdeath(entity player, entity teleporter, entity telefragger, vector telefragmin, vector telefragmax)
 {
+	
 	entity head;
 	vector deathmin;
 	vector deathmax;
 	float deathradius;
+    float deathtype = (tdeath_deathtype? tdeath_deathtype : DEATH_TELEFRAG);
+    float damage;
+    float medic;
+    
+    if(tdeath_deathtype == DEATH_HG_TRANSLOC) {
+    	if(teleporter.hg_tl_revived)
+    		damage = 0;
+		else if(cvar("g_nadgets_transloc_scaledamagedistance")) {
+			float minDamage = cvar("g_nadgets_transloc_mindamage");
+			float maxDamage = cvar("g_nadgets_transloc_maxdamage");
+			float minDist = cvar("g_nadgets_transloc_mindistance"); //min distance needed to inflict the min damage
+			float maxDist = cvar("g_nadgets_transloc_maxdistance"); //distance needed to inflict the maximum damage
+			float dist = vlen(teleporter.spawnorigin - player.origin);
+
+			if(dist < minDist)
+				damage = 0;
+			else
+				damage = bound(minDamage, maxDamage * (dist / maxDist), maxDamage) * Buffs_NadgetPower(player);
+		} else {
+			damage = cvar("g_nadgets_transloc_damage");
+			if(damage)
+				damage = damage * Buffs_NadgetPower(player);
+			else
+				damage = 10000;
+		}
+	} else if(tdeath_deathtype == DEATH_TELEFRAG)
+		damage = 10000;
+    
+    medic = Buffs_BuffPower(telefragger, BUFF_MEDIC);
+    
 	deathmin = player.absmin;
 	deathmax = player.absmax;
+    
 	if(telefragmin != telefragmax)
 	{
 		if(deathmin_x > telefragmin_x) deathmin_x = telefragmin_x;
@@ -22,23 +55,26 @@ void tdeath(entity player, entity teleporter, entity telefragger, vector telefra
 		if(deathmax_y < telefragmax_y) deathmax_y = telefragmax_y;
 		if(deathmax_z < telefragmax_z) deathmax_z = telefragmax_z;
 	}
+    
 	deathradius = max(vlen(deathmin), vlen(deathmax));
 	for(head = findradius(player.origin, deathradius); head; head = head.chain)
 		if(head != player)
 			if(head.takedamage)
+                if(!cvar("g_telefrags_noteam") || IsDifferentTeam(player, head) || medic)
 				if(boxesoverlap(deathmin, deathmax, head.absmin, head.absmax))
 				{
-					if ((player.classname == "player") && (player.health >= 1))
-					{
-						if(head.classname == "player")
-						if(head.health >= 1)
-							++tdeath_hit;
-						Damage (head, teleporter, telefragger, 10000, DEATH_TELEFRAG, head.origin, '0 0 0');
+					if(player.iscreature && (player.health >= 1)) {
+						Damage(head, teleporter, telefragger, damage, deathtype, head.origin, '0 0 0');
+                        
+                        if(head.iscreature)
+                        if(head.deadflag != DEAD_NO || (g_freeze && head.frozen) || (g_jailbreak && head.jb_isprisoned))
+                        if(!teams_matter || head.team != player.team)
+                            ++tdeath_hit;
 					}
-					else if (telefragger.health < 1) // corpses gib
-						Damage (head, teleporter, telefragger, 10000, DEATH_TELEFRAG, head.origin, '0 0 0');
+					else if(telefragger.health < 1) // corpses gib
+						Damage(head, teleporter, telefragger, 10000, deathtype, head.origin, '0 0 0');
 					else // dead bodies and monsters gib themselves instead of telefragging
-						Damage (telefragger, teleporter, telefragger, 10000, DEATH_TELEFRAG, telefragger.origin, '0 0 0');
+						Damage(telefragger, teleporter, telefragger, 10000, deathtype, telefragger.origin, '0 0 0');
 				}
 }
 
@@ -48,37 +84,40 @@ void spawn_tdeath(vector v0, entity e, vector v)
 }
 
 .entity pusher;
+.float teleport_effecttime;
 void TeleportPlayer(entity teleporter, entity player, vector to, vector to_angles, vector to_velocity, vector telefragmin, vector telefragmax)
 {
 	entity oldself;
 	entity telefragger;
+    entity h;
 	vector from;
 
 	if(teleporter.owner)
 		telefragger = teleporter.owner;
 	else
 		telefragger = player;
-
+    
 	makevectors (to_angles);
 
-	if(self.pushltime < time) // only show one teleport effect per teleporter per 0.2 seconds, for better fps
+	if(self.teleport_effecttime < time) // only show one teleport effect per teleporter per 0.2 seconds, for better fps
 	{
 		sound (player, CHAN_TRIGGER, "misc/teleport.wav", VOL_BASE, ATTN_NORM);
 		pointparticles(particleeffectnum("teleport"), player.origin, '0 0 0', 1);
 		pointparticles(particleeffectnum("teleport"), to + v_forward * 32, '0 0 0', 1);
-		self.pushltime = time + 0.2;
+		self.teleport_effecttime = time + 0.2;
 	}
 
 	// Relocate the player
 	// assuming to allows PL_MIN to PL_MAX box and some more
 	from = player.origin;
-	setorigin (player, to);
+	setorigin(player, to);
+    player.antilag_saved_origin = to; // prevent antilag from taking us back from the teleport destination
 	player.oldorigin = to; // don't undo the teleport by unsticking
 	player.angles = to_angles;
 	player.fixangle = TRUE;
 	player.velocity = to_velocity;
 	BITXOR_ASSIGN(player.effects, EF_TELEPORT_BIT);
-
+    
 	UpdateCSQCProjectileAfterTeleport(player);
 
 	if(player.classname == "player")
@@ -114,15 +153,38 @@ void TeleportPlayer(entity teleporter, entity player, vector to, vector to_angle
 			self = oldself;
 		}
 	}
+    
+    for(;(h = find(h, classname, "grapplinghook"));)
+        if(h.aiment == player)
+            RemoveGrapplingHook(h.owner);
+}
+
+void TeleportPlayer_NextFrame_Think() {
+    TeleportPlayer(self.owner, self.enemy, self.origin, self.angles, self.velocity, self.mins, self.maxs);
+    remove(self);
+}
+
+void TeleportPlayer_NextFrame(entity teleporter, entity player, vector to, vector to_angles, vector to_velocity, vector telefragmin, vector telefragmax) {
+    entity e = spawn();
+    e.think = TeleportPlayer_NextFrame_Think;
+    e.nextthink = time;
+    e.owner = teleporter;
+    e.enemy = player;
+    e.origin = to;
+    e.angles = to_angles;
+    e.velocity = to_velocity;
+    e.mins = telefragmin;
+    e.maxs = telefragmax;
 }
 
 void Teleport_Touch (void)
 {
 	entity oldself, e;
-
-	if (other.health < 1)
+    
+	if (other.deadflag != DEAD_NO)
 		return;
-	if not(other.flags & FL_CLIENT)	// FIXME: Make missiles firable through the teleport too
+
+	if not(other.flags & FL_CLIENT || (other.flags & FL_PROJECTILE && cvar("g_teleport_projectiles")))
 		return;
 
 	if(self.team)
@@ -130,9 +192,7 @@ void Teleport_Touch (void)
 			return;
 
 	EXACTTRIGGER_TOUCH;
-
-	makevectors(self.enemy.mangle);
-
+    
 	if(other.classname == "player")
 		RemoveGrapplingHook(other);
 
@@ -158,6 +218,8 @@ void Teleport_Touch (void)
 		sprint(other, "Teleport destination vanished. Sorry... please complain to the mapper.\n");
 	}
 
+	makevectors(e.mangle);
+    
 	if(e.speed)
 		if(vlen(other.velocity) > e.speed)
 			other.velocity = normalize(other.velocity) * max(0, e.speed);
@@ -245,7 +307,7 @@ void spawnfunc_trigger_teleport (void)
 	EXACTTRIGGER_INIT;
 
 	self.use = trigger_teleport_use;
-
+    
 	// this must be called to spawn the teleport waypoints for bots
 	InitializeEntity(self, teleport_findtarget, INITPRIO_FINDTARGET);
 

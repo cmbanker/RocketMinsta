@@ -1,0 +1,16 @@
+
+float g_terminals;
+
+.float term_auth;
+.float term_authed;
+.float term_used;
+.float term_nextuse;
+
+void Term_Init(void);
+void Term_Hook_PlayerPreThink(void);
+
+entity term_first;
+entity term_last;
+.entity term_next;
+
+#define FOR_EACH_TERMINAL(e) for(e = term_first; e; e = e.term_next)

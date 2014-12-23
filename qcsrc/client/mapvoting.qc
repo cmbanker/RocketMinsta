@@ -7,7 +7,6 @@ string mv_pk3[MAPVOTE_COUNT];
 float mv_preview[MAPVOTE_COUNT];
 float mv_votes[MAPVOTE_COUNT];
 float mv_avail[MAPVOTE_COUNT];
-float mv_drawangles[MAPVOTE_COUNT];
 float mv_hoveralpha[MAPVOTE_COUNT];
 float mv_removetime[MAPVOTE_COUNT];
 entity mv_pk3list;
@@ -17,7 +16,6 @@ float mv_detail;
 float mv_timeout;
 float mv_maps_mask;
 float mv_starttime;
-float mv_gtvote_previewangle;
 
 #define PREVIEW_FROMSERVER 2
 
@@ -105,13 +103,6 @@ float GametypeVote_Selection()
 	}
 
 	return r;
-}
-
-void MapVote_RememberMap(string mname)
-{
-	mapvote_choosenmap 		= strzone(mname);
-	mapvote_choosenmappic 	= strzone(strcat("maps/", mname));
-	//print("mapvote_choosenmappic = ", mapvote_choosenmappic, "\n");
 }
 
 string MapVote_FormatMapItem(float id, string map, float count, float maxwidth)
@@ -203,11 +194,11 @@ void MapVote_DrawMapItem(vector pos, float isize, float tsize, string map, strin
 	vector img_size;
 	vector rgb;
 	vector txtpos;
+    float origsize;
 	string label;
 	float text_size;
 
 	float alpha = 1 - pow(bound(0, (time - mv_starttime), 1) - 1, 2);
-	float angle = alpha * mv_drawangles[id];
 	float ha = 	ipol_swingInOut(mv_hoveralpha[id]);
 				//((id == mv_selection)? ipol_swingOut : ipol_swingIn)(mv_hoveralpha[id]);
 	float fromserver = mv_preview[id] == PREVIEW_FROMSERVER;
@@ -218,9 +209,6 @@ void MapVote_DrawMapItem(vector pos, float isize, float tsize, string map, strin
 	if(mv_votes[id] < 0)
 		alpha2 = 1 - bound(0, time - mv_removetime[id], 1) * 0.7;
 	
-	if(fromserver)
-		angle = 0;
-	
 	if(sv_oldfag) {
 		alpha = 1;
 		
@@ -228,6 +216,7 @@ void MapVote_DrawMapItem(vector pos, float isize, float tsize, string map, strin
 			alpha2 = 0.3;
 	}
 	
+    origsize = isize;
 	isize *= alpha + ha * 0.07;
 	isize -= sbar_fontsize_y; // respect the text when calculating the image size
 
@@ -247,19 +236,16 @@ void MapVote_DrawMapItem(vector pos, float isize, float tsize, string map, strin
 	txtpos = pos;
 
 	pos_x = pos_x + text_size*0.5 - img_size_x*0.5;
-	pos_y = pos_y - img_size_y;
+	pos_y = pos_y - img_size_y - (isize - origsize) * 0.5;
 
-	if(sv_oldfag) {
-		pos += sbar_border_thickness * '1 1 0';
-		img_size -= (sbar_border_thickness * 2) * '1 1 0';
-		drawborderlines(sbar_border_thickness, pos, img_size, ((rgb == '1 1 1')? '0 0 0' : rgb), 1, DRAWFLAG_NORMAL);
-	}
+    pos += sbar_border_thickness * '1 1 0';
+    img_size -= (sbar_border_thickness * 2) * '1 1 0';
+    
+    if(id < mv_num_maps)
+        drawborderlines(sbar_border_thickness, pos, img_size, ((rgb == '1 1 1')? '0 0 0' : rgb), 1, DRAWFLAG_NORMAL);
 
 	if(pic != "") {
-		if(!fromserver)
-			drawpic_rotated(pos, pic, img_size, '1 1 1' * alpha2, angle, alpha * alpha2, DRAWFLAG_NORMAL);
-		else
-			drawpic(pos, pic, img_size, '1 1 1' * alpha2, alpha * alpha2, DRAWFLAG_NORMAL);
+        drawpic(pos, pic, img_size, '1 1 1' * alpha2, alpha * alpha2, DRAWFLAG_NORMAL);
 	}
 
 	vector hs = img_size * 0.5;
@@ -374,8 +360,8 @@ void MapVote_Draw()
 	pos_y += (dist_y - isize) / 2;
 	ymax -= isize;
 
-	local vector o;
-
+	vector o;
+    
 	if(gametypevote)
 	{
 		// draws the picked map
@@ -388,26 +374,19 @@ void MapVote_Draw()
 		vector img_size;
 		vector img_fullsize;
 
+        isize = vid_conwidth * 0.25;
 		img_size_y = isize;
 		img_size_x = isize / 0.75;
 		img_fullsize = img_size;
 		img_size *= alpha;
-
-		o_x = min(
-			vid_conwidth * 0.5 + (sbar_fontsize_x * gametypevote_longest) * 0.25,
-			vid_conwidth - sbar_fontsize_x - img_size_x
-		);
-		
-		o_y = sbar_fontsize_y * 10;
-
-		//drawborderlines(sbar_border_thickness, o, img_size, '0 0 0', 1, DRAWFLAG_NORMAL);
-		
-		if(mapvote_choosenmappic != "") {
-			if(mv_gtvote_previewangle == 0)
-				drawpic(o + 0.5 * (img_fullsize - img_size), mapvote_choosenmappic, img_size, '1 1 1', alpha, DRAWFLAG_NORMAL);
-			else
-				drawpic_rotated(o + 0.5 * (img_fullsize - img_size), mapvote_choosenmappic, img_size, '1 1 1', mv_gtvote_previewangle * rawalpha, alpha, DRAWFLAG_NORMAL);
-		}
+        
+        o_x = vid_conwidth * 0.75 - img_fullsize_x * 0.5;
+        o_y = sbar_fontsize_y * 10;
+        
+        vector o2 = o + 0.5 * (img_fullsize - img_size);
+        drawborderlines(sbar_border_thickness, o2, img_size, '0 0 0', 1, DRAWFLAG_NORMAL);
+        if(mapvote_choosenmappic != "")
+            drawpic(o2, mapvote_choosenmappic, img_size, '1 1 1', alpha, DRAWFLAG_NORMAL);
 
 		vector sz = sbar_fontsize * alpha;
 		img_size = img_fullsize;
@@ -418,8 +397,7 @@ void MapVote_Draw()
 		drawstring(o, mapvote_choosenmap, sz, '1 1 1' * alpha * alpha, alpha * alpha, DRAWFLAG_NORMAL);
 	}
 
-	o_x = max(vid_conwidth * 0.5 - (sbar_fontsize_x * gametypevote_longest) * 0.5, sbar_fontsize_x);
-	//o_x = sbar_fontsize_x * 2;
+	o_x = max(vid_conwidth * 0.25 - (sbar_fontsize_x * gametypevote_longest) * 0.25, sbar_fontsize_x);
 	o_y = sbar_fontsize_y * 10;
 
 	for(i = 0; i < mv_num_maps; ++i)
@@ -536,28 +514,28 @@ void MapVote_CheckPK3(string pic, string pk3, float id)
 	}
 }
 
-void MapVote_CheckPic(string pic, string pk3, float id)
+float MapVote_CheckPic(string pic, string pk3, float id)
 {
 	// never try to retrieve a pic for the "don't care" 'map'
 	if(mv_abstain && id == mv_num_maps - 1)
-		return;
+		return 1;
 	
 	// never try to retrieve pics for gametype votes
 	if(gametypevote)
-		return;
+		return 1;
 	
-	if(PreviewExists(pic))
-	{
+	if(PreviewExists(pic)) {
 		mv_preview[id] = true;
-		return;
+		return 1;
 	}
-	MapVote_CheckPK3(pic, pk3, id);
+    
+    return 0;
 }
 
 void MapVote_Init()
 {
-	float i, n, j, power, tmp;
-	string map, pk3, ssdir;
+	float i, n, j, power, tmp, oldnum;
+	string map, pic, pk3, ssdir, q3ssdir;
 
 	precache_sound ("misc/invshot.wav");
 
@@ -569,7 +547,9 @@ void MapVote_Init()
 	mv_selection = -1;
 
 	ssdir = ReadString();
-
+    q3ssdir = "levelshots";
+    
+    oldnum = mv_num_maps;
 	mv_num_maps = min(MAPVOTE_COUNT, ReadByte());
 	mv_abstain = ReadByte();
 	if(mv_abstain)
@@ -581,16 +561,23 @@ void MapVote_Init()
 
 	gametypevote = ReadByte();
 
-	if(gametypevote)
-	{
-		print("^5Now decide the GAMETYPE!\n");
-		MapVote_RememberMap(ReadString());
-		
-		if(!sv_oldfag && PreviewExists(mapvote_choosenmap))
-			mv_gtvote_previewangle = PI * 0.15 * (random() - 0.5);
-		else
-			mv_gtvote_previewangle = 0;
-	}
+    if(gametypevote)
+    {
+        string cmap = ReadString();
+        string cpic;
+        
+        for(i = 0; i < oldnum; ++i) {
+            if(mv_maps[i] == cmap) {
+                cpic = mv_pics[i];
+                break;
+            }
+        }
+        
+        mapvote_choosenmap 		= strzone(cmap);
+        mapvote_choosenmappic 	= strzone(cpic);
+        
+        print("^5Now decide the GAMETYPE!\n");
+    }
 
 	if(mv_num_maps <= 8)
 		mv_maps_mask = ReadByte();
@@ -602,27 +589,21 @@ void MapVote_Init()
 	// Assume mv_pk3list is NULL, there should only be 1 mapvote per round
 	mv_pk3list = NULL; // I'm still paranoid!
 
-	mv_starttime = time;
+    if(!mv_starttime || gametypevote)
+        mv_starttime = time;
+    
 	for(i = 0, power = 1; i < mv_num_maps; ++i, power *= 2)
 	{
 		mv_votes[i] = 0;
-		if(!sv_oldfag)
-			mv_drawangles[i] = PI * 0.15 * (random() - 0.5);
-
+        
 		if(mv_maps_mask & power)
 		{
-			map = strzone(ReadString());
-			pk3 = strzone(ReadString());
-			mv_maps[i] = map;
-			mv_pk3[i] = pk3;
-			map = strzone(strcat(ssdir, "/", map));
-			mv_pics[i] = map;
-
-			mv_preview[i] = false;
-
-			//print(strcat("RECV: ", map, " in ", pk3, "\n"));
-			MapVote_CheckPic(map, pk3, i);
-
+            map = strzone(ReadString());
+            pk3 = strzone(ReadString());
+            mv_maps[i] = map;
+            mv_pk3[i] = pk3;
+            mv_preview[i] = false;
+            
 			if(gametypevote)
 			{
 				mv_avail[i] = ReadByte();
@@ -631,10 +612,26 @@ void MapVote_Init()
 				for(j = 0; j < n; ++j)
 				{
 					tmp = strlen(argv(j));
-					if(tmp > gametypevote_longest)
+					if(tmp > gametypevote_longest) {
 						gametypevote_longest = tmp;
+                    }
 				}
-			}
+			} else {
+                pic = strzone(strcat(ssdir, "/", map));
+                
+                if(!MapVote_CheckPic(pic, pk3, i)) {
+                    string q3pic = strcat(q3ssdir, "/", map);
+                    
+                    if(!MapVote_CheckPic(q3pic, pk3, i)) {
+                        MapVote_CheckPK3(pic, pk3, i);
+                    } else {
+                        strunzone(pic);
+                        pic = strzone(q3pic);
+                    }
+                }
+                
+                mv_pics[i] = pic;
+            }
 		}
 		else
 		{

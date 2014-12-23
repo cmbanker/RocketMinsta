@@ -1,0 +1,11 @@
+
+#define DOMPOINTFRAGS frags
+#define FOR_EACH_DOM_CONTROLPOINT(v) for(v = world; (v = find(v, classname, "dom_controlpoint")) != world; )
+
+.float enemy_playerid;
+.entity sprite;
+.float captime;
+.float pointupdatetime;
+float totalpoints, redpoints, bluepoints;
+.entity dom_capturingplayer;
+float dom_numpts;

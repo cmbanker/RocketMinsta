@@ -63,7 +63,7 @@ const float COLOR_SPECTATOR = 1337;
 // --------------------------------------------------------------------------
 // Scoreboard stuff
 
-#define MAX_SBAR_FIELDS 16
+#define MAX_SBAR_FIELDS 32
 
 #define SP_END -1
 
@@ -73,6 +73,7 @@ const float COLOR_SPECTATOR = 1337;
 #define SP_CLRATIO -5
 #define SP_PL -6
 #define SP_FRAGS -7
+#define SP_LAG -8
 
 #define SP_SEPARATOR -100
 
@@ -91,6 +92,7 @@ string teamscores_label[MAX_SCORE];
 float teamscores_flags[MAX_SCORE];
 .float scores[MAX_SCORE];
 .float teamscores[MAX_TEAMSCORE];
+.float hasbestscore[MAX_SCORE];
 
 #define IS_INCREASING(x) ( (x)&SFL_LOWER_IS_BETTER )
 #define IS_DECREASING(x) ( !((x)&SFL_LOWER_IS_BETTER) )
@@ -200,6 +202,8 @@ float rm_oldhud_option;
 float rm_althud_option;
 float rm_noflags;
 float rm_showrankings;
+float rm_showtimer;
+float rm_shownadgetregen;
 
 float rm_oldhud;
 float rm_althud;
@@ -241,9 +245,6 @@ float gametypevote_longest;
 
 string mapvote_choosenmap;
 string mapvote_choosenmappic;
-void MapVote_RememberMap(string);
-
-string speedrecord_string;
 
 void score_visual(float);
 
@@ -291,10 +292,10 @@ float gui_reloading;
 
 float rm_hidecountry;
 
-vector jb_camera_origin;
-float jb_camera_expiretime;
-float jb_chasecam_locked;
-float jb_chasecam_backup;
+vector camera_origin;
+float camera_expiretime;
+float camera_drawviewmodel_locked;
+float camera_drawviewmodel_backup;
 
 float cl_fps;
 
@@ -305,13 +306,16 @@ string sv_hostname;
 string sv_rm_build;
 string sv_rm_version;
 string sv_rm_date;
+string sv_rm_commit;
 string sv_motd;
 
 float sv_showspecs_extra;
 float sv_showfps;
 float sv_oldfag;
 
-float g_handgrenades;
+float g_nadgets;
+float sv_scoreboard_heal_column;
+float g_freeze;
 
 float Q3SURFACEFLAG_SLICK = 2; // low friction surface
 float DPCONTENTS_SOLID = 1; // blocks player movement
@@ -323,3 +327,13 @@ float DPCONTENTS_PLAYERCLIP = 256; // blocks player movement
 .vector iorigin;
 
 float whatsgoingon;
+
+entity dtrack_total;
+entity dtrack_taken;
+entity dtrack_total_spec;
+entity dtrack_taken_spec;
+
+float sv_damagestats;
+
+float GetBigfont();
+void cvar_clientsettemp(string cv, string val);

@@ -364,7 +364,7 @@ void() teamradar_view =
 	for(tm = world; (tm = find(tm, classname, "entcs_receiver")); )
 	{
 		color2 = GetPlayerColor(tm.sv_entnum);
-		//if(color == COLOR_SPECTATOR || color == color2)
+		if(color1 == COLOR_SPECTATOR || color1 == color2)
 			draw_teamradar_player(tm.origin, tm.angles, GetTeamRGB(color2));
 	}
 	draw_teamradar_player(view_origin, view_angles, '1 1 1');

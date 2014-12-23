@@ -10,7 +10,7 @@ void prec_rune_touch ();
 void prec_rune_damage (entity, entity, float, float, vector, vector);
 float prec_rune_bot_eval_pickup (entity, entity);
 
-void prec_player_die (entity);
+void prec_player_die (entity, entity);
 float prec_check_aggression (entity, entity, entity);
 
 entity prec_controller;

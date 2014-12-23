@@ -298,6 +298,7 @@ Ridable platform, targets spawnfunc_path_corner path to follow.
 speed : speed the train moves (can be overridden by each spawnfunc_path_corner)
 target : targetname of first spawnfunc_path_corner (starts here)
 */
+
 void spawnfunc_func_train()
 {
 	if (self.noise != "")
@@ -323,7 +324,7 @@ void spawnfunc_func_train()
 	if(self.dmg && (!self.dmgtime))
 		self.dmgtime = 0.25;
 	self.dmgtime2 = time;
-
+    
 	// TODO make a reset function for this one
 };
 
@@ -1301,7 +1302,6 @@ void door_rotating_init_startopen()
 	self.pos2 = '0 0 0';
 	self.pos1 = self.movedir;
 }
-
 
 void spawnfunc_func_door_rotating()
 {

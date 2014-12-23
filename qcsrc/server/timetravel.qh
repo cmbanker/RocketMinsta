@@ -1,0 +1,21 @@
+
+#define TIMETRAVEL_HANDLER(name,ftype,store,restore) \
+        void TimeTravel_Store##name(entity e, entity moment, .ftype fld) store \
+        void TimeTravel_Restore##name(entity e, entity moment, .ftype fld) restore
+
+#define TIMETRAVEL_STORE_IDENTITY   { moment.fld = e.fld; }
+#define TIMETRAVEL_RESTORE_IDENTITY { e.fld = moment.fld; }
+
+TIMETRAVEL_HANDLER(Float,       float,  TIMETRAVEL_STORE_IDENTITY, TIMETRAVEL_RESTORE_IDENTITY)
+TIMETRAVEL_HANDLER(Time,        float,  { moment.fld = e.fld - time; }, { e.fld = moment.fld + time; })
+TIMETRAVEL_HANDLER(Vector,      vector, TIMETRAVEL_STORE_IDENTITY, TIMETRAVEL_RESTORE_IDENTITY)
+TIMETRAVEL_HANDLER(Origin,      vector, TIMETRAVEL_STORE_IDENTITY, { setorigin(e, moment.fld); e.antilag_saved_origin = moment.fld; })
+TIMETRAVEL_HANDLER(Angles,      vector, TIMETRAVEL_STORE_IDENTITY, { e.fld = moment.fld; e.fixangle = TRUE; })
+TIMETRAVEL_HANDLER(VoidFunc,    void(), TIMETRAVEL_STORE_IDENTITY, TIMETRAVEL_RESTORE_IDENTITY)
+
+entity TimeTravel_SaveMoment(entity e);
+void TimeTravel_TakeBack(entity dst, entity state);
+void TimeTravel_EraseMoment(entity e);
+
+.entity tt_lastmoment;
+entity tt_moment;

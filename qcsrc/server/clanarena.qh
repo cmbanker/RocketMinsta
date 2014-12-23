@@ -1,0 +1,13 @@
+
+float ca_teams;
+float g_clanarena_pickups;
+
+void CA_Initialize(void);
+void CA_CheckWinner(void);
+void CA_EndRound(void);
+void CA_PlayerDies(entity);
+void CA_RecountPlayers(void);
+float CA_AliveCheck(entity);
+float CA_AttemptRespawn(void);
+void CA_PlayerJoins(void);
+void CA_PlayerLeaves(void);

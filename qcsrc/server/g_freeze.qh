@@ -1,0 +1,51 @@
+
+float g_freeze;
+float g_freezetag;
+float g_freeze_globalwarming;
+float g_freeze_globalwarming_warned;
+float g_freeze_globalwarming_reset;
+
+.float frozen;
+.float freezetime;
+.float freezetime_real;
+.float revprogress;
+.float revresettime;
+.float revfinished;
+.float revtime;
+.float meltprogress;
+.float revrow;
+.float danger_used;
+.float frozenrow;
+.float freeze_playerfelloff;
+
+.float spawnstate_saved;
+.float spawnstate_team;
+.vector spawnstate_origin;
+.vector spawnstate_angles;
+
+.entity freeze_waypoint;
+.entity iceblock;
+
+void Freeze_Init(void);
+void Freeze_Frame(void);
+void Freeze_Precache(void);
+string Freeze_CVarName(string);
+void Freeze_FreezePlayer(entity, entity);
+float Freeze_GetPlayersAlive(float);
+float Freeze_GetPlayersTotal(float);
+void Freeze_RecountPlayers(void);
+void Freeze_SetGlobalWarming(float);
+float Freeze_GameInProgress(void);
+void Freeze_UnfreezeAll(void);
+void Freeze_FreezePlayer(entity, entity);
+void Freeze_UnfreezePlayer(entity);
+void Freeze_RevivePlayer(entity, entity);
+
+void Freeze_Hook_PlayerSpawns(void);
+void Freeze_Hook_PlayerPhysics(void);
+void Freeze_Hook_PlayerPreThink(void);
+float Freeze_Hook_PlayerDies(entity, vector, float);
+void Freeze_Hook_PlayerQuits(void);
+
+#define Freeze_CVar(s) (cvar(Freeze_CVarName(s)))
+#define Freeze_CVarString(s) (cvar_string(Freeze_CVarName(s)))

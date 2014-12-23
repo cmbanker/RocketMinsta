@@ -1,5 +1,5 @@
 void vip_init();
-float vip_PlayerDies(float);
+float vip_PlayerDies(entity, entity, float);
 void vip_AssignVIPs();
 void vip_ClearVIPs();
 float vip_RemovePlayer();

@@ -34,7 +34,7 @@ Angles control the aim.
 jb_torture_force: The force of fired projectiles (default: 400)
 jb_torture_force_jitter: The amplitude of random deviations from the fire force (default: jb_torture_force * 0.1)
 jb_torture_delay: The delay between shots (default: 2)
-jb_torture_delay_jitter: The amplitude of random deviations from the fire delay (default: jb_torture_delay_jitter * 0.5)
+jb_torture_delay_jitter: The amplitude of random deviations from the fire delay (default: jb_torture_delay * 0.5)
 */
 
 /*QUAKED info_jailbreak_torturespawn_blue (.1 .1 1) (-8 -8 -8) (8 8 8)
@@ -45,7 +45,7 @@ Angles control the aim.
 jb_torture_force: The force of fired projectiles (default: 400)
 jb_torture_force_jitter: The amplitude of random deviations from the fire force (default: jb_torture_force * 0.1)
 jb_torture_delay: The delay between shots (default: 2)
-jb_torture_delay_jitter: The amplitude of random deviations from the fire delay (default: jb_torture_delay_jitter * 0.5)
+jb_torture_delay_jitter: The amplitude of random deviations from the fire delay (default: jb_torture_delay * 0.5)
 */
 
 /*QUAKED jailbreak_controlpoint_red (1 0 0) (-16 -16 -16) (16 16 16) 
@@ -70,3 +70,288 @@ The NEUTRAL controlpoint. Can be used by any team.
 model="models/domination/dom_yellow.md3"
 */
 
+
+/*QUAKED item_buff_arc (0.2 0.7 1.0) (-16 -16 -16) (16 16 16)
+The Arc Buff
+*/
+
+/*QUAKED item_buff_arc_team1 (0.2 0.7 1.0) (-16 -16 -16) (16 16 16)
+The Arc Buff (Red Team)
+*/
+
+/*QUAKED item_buff_arc_team2 (0.2 0.7 1.0) (-16 -16 -16) (16 16 16)
+The Arc Buff (Blue Team)
+*/
+
+/*QUAKED item_buff_arc_team3 (0.2 0.7 1.0) (-16 -16 -16) (16 16 16)
+The Arc Buff (Yellow Team)
+*/
+
+/*QUAKED item_buff_arc_team4 (0.2 0.7 1.0) (-16 -16 -16) (16 16 16)
+The Arc Buff (Pink Team)
+*/
+
+
+/*QUAKED item_buff_guard (0.3 0.2 1.0) (-16 -16 -16) (16 16 16)
+The Guard Buff
+*/
+
+/*QUAKED item_buff_guard_team1 (0.3 0.2 1.0) (-16 -16 -16) (16 16 16)
+The Guard Buff (Red Team)
+*/
+
+/*QUAKED item_buff_guard_team2 (0.3 0.2 1.0) (-16 -16 -16) (16 16 16)
+The Guard Buff (Blue Team)
+*/
+
+/*QUAKED item_buff_guard_team3 (0.3 0.2 1.0) (-16 -16 -16) (16 16 16)
+The Guard Buff (Yellow Team)
+*/
+
+/*QUAKED item_buff_guard_team4 (0.3 0.2 1.0) (-16 -16 -16) (16 16 16)
+The Guard Buff (Pink Team)
+*/
+
+
+/*QUAKED item_buff_supply (0.2 1.0 0.2) (-16 -16 -16) (16 16 16)
+The Supply Buff
+*/
+
+/*QUAKED item_buff_supply_team1 (0.2 1.0 0.2) (-16 -16 -16) (16 16 16)
+The Supply Buff (Red Team)
+*/
+
+/*QUAKED item_buff_supply_team2 (0.2 1.0 0.2) (-16 -16 -16) (16 16 16)
+The Supply Buff (Blue Team)
+*/
+
+/*QUAKED item_buff_supply_team3 (0.2 1.0 0.2) (-16 -16 -16) (16 16 16)
+The Supply Buff (Yellow Team)
+*/
+
+/*QUAKED item_buff_supply_team4 (0.2 1.0 0.2) (-16 -16 -16) (16 16 16)
+The Supply Buff (Pink Team)
+*/
+
+
+/*QUAKED item_buff_haste (1.0 1.0 0.2) (-16 -16 -16) (16 16 16)
+The Haste Buff
+*/
+
+/*QUAKED item_buff_haste_team1 (1.0 1.0 0.2) (-16 -16 -16) (16 16 16)
+The Haste Buff (Red Team)
+*/
+
+/*QUAKED item_buff_haste_team2 (1.0 1.0 0.2) (-16 -16 -16) (16 16 16)
+The Haste Buff (Blue Team)
+*/
+
+/*QUAKED item_buff_haste_team3 (1.0 1.0 0.2) (-16 -16 -16) (16 16 16)
+The Haste Buff (Yellow Team)
+*/
+
+/*QUAKED item_buff_haste_team4 (1.0 1.0 0.2) (-16 -16 -16) (16 16 16)
+The Haste Buff (Pink Team)
+*/
+
+
+/*QUAKED item_buff_medic (1.0 0.3 1.0) (-16 -16 -16) (16 16 16)
+The Medic Buff
+*/
+
+/*QUAKED item_buff_medic_team1 (1.0 0.3 1.0) (-16 -16 -16) (16 16 16)
+The Medic Buff (Red Team)
+*/
+
+/*QUAKED item_buff_medic_team2 (1.0 0.3 1.0) (-16 -16 -16) (16 16 16)
+The Medic Buff (Blue Team)
+*/
+
+/*QUAKED item_buff_medic_team3 (1.0 0.3 1.0) (-16 -16 -16) (16 16 16)
+The Medic Buff (Yellow Team)
+*/
+
+/*QUAKED item_buff_medic_team4 (1.0 0.3 1.0) (-16 -16 -16) (16 16 16)
+The Medic Buff (Pink Team)
+*/
+
+
+/*QUAKED item_buff_ignite (1.0 0.4 0.0) (-16 -16 -16) (16 16 16)
+The Ignite Buff
+*/
+
+/*QUAKED item_buff_ignite_team1 (1.0 0.4 0.0) (-16 -16 -16) (16 16 16)
+The Ignite Buff (Red Team)
+*/
+
+/*QUAKED item_buff_ignite_team2 (1.0 0.4 0.0) (-16 -16 -16) (16 16 16)
+The Ignite Buff (Blue Team)
+*/
+
+/*QUAKED item_buff_ignite_team3 (1.0 0.4 0.0) (-16 -16 -16) (16 16 16)
+The Ignite Buff (Yellow Team)
+*/
+
+/*QUAKED item_buff_ignite_team4 (1.0 0.4 0.0) (-16 -16 -16) (16 16 16)
+The Ignite Buff (Pink Team)
+*/
+
+
+/*QUAKED item_buff_vampire (1.0 0.15 0.1) (-16 -16 -16) (16 16 16)
+The Vampire Buff
+*/
+
+/*QUAKED item_buff_vampire_team1 (1.0 0.15 0.1) (-16 -16 -16) (16 16 16)
+The Vampire Buff (Red Team)
+*/
+
+/*QUAKED item_buff_vampire_team2 (1.0 0.15 0.1) (-16 -16 -16) (16 16 16)
+The Vampire Buff (Blue Team)
+*/
+
+/*QUAKED item_buff_vampire_team3 (1.0 0.15 0.1) (-16 -16 -16) (16 16 16)
+The Vampire Buff (Yellow Team)
+*/
+
+/*QUAKED item_buff_vampire_team4 (1.0 0.15 0.1) (-16 -16 -16) (16 16 16)
+The Vampire Buff (Pink Team)
+*/
+
+
+/*QUAKED item_buff_tenacity (0.66 0.66 0.73) (-16 -16 -16) (16 16 16)
+The Tenacity Buff
+*/
+
+/*QUAKED item_buff_tenacity_team1 (0.66 0.66 0.73) (-16 -16 -16) (16 16 16)
+The Tenacity Buff (Red Team)
+*/
+
+/*QUAKED item_buff_tenacity_team2 (0.66 0.66 0.73) (-16 -16 -16) (16 16 16)
+The Tenacity Buff (Blue Team)
+*/
+
+/*QUAKED item_buff_tenacity_team3 (0.66 0.66 0.73) (-16 -16 -16) (16 16 16)
+The Tenacity Buff (Yellow Team)
+*/
+
+/*QUAKED item_buff_tenacity_team4 (0.66 0.66 0.73) (-16 -16 -16) (16 16 16)
+The Tenacity Buff (Pink Team)
+*/
+
+
+/*QUAKED item_buff_wrath (0.55 0.50 1.00) (-16 -16 -16) (16 16 16)
+The Wrath Buff
+*/
+
+/*QUAKED item_buff_wrath_team1 (0.55 0.50 1.00) (-16 -16 -16) (16 16 16)
+The Wrath Buff (Red Team)
+*/
+
+/*QUAKED item_buff_wrath_team2 (0.55 0.50 1.00) (-16 -16 -16) (16 16 16)
+The Wrath Buff (Blue Team)
+*/
+
+/*QUAKED item_buff_wrath_team3 (0.55 0.50 1.00) (-16 -16 -16) (16 16 16)
+The Wrath Buff (Yellow Team)
+*/
+
+/*QUAKED item_buff_wrath_team4 (0.55 0.50 1.00) (-16 -16 -16) (16 16 16)
+The Wrath Buff (Pink Team)
+*/
+
+
+/*QUAKED item_buff_adept (0.57 0.00 1.00) (-16 -16 -16) (16 16 16)
+The Adept Buff
+*/
+
+/*QUAKED item_buff_adept_team1 (0.57 0.00 1.00) (-16 -16 -16) (16 16 16)
+The Adept Buff (Red Team)
+*/
+
+/*QUAKED item_buff_adept_team2 (0.57 0.00 1.00) (-16 -16 -16) (16 16 16)
+The Adept Buff (Blue Team)
+*/
+
+/*QUAKED item_buff_adept_team3 (0.57 0.00 1.00) (-16 -16 -16) (16 16 16)
+The Adept Buff (Yellow Team)
+*/
+
+/*QUAKED item_buff_adept_team4 (0.57 0.00 1.00) (-16 -16 -16) (16 16 16)
+The Adept Buff (Pink Team)
+*/
+
+
+/*QUAKED item_buff_meodp (0.10 0.10 0.10) (-16 -16 -16) (16 16 16)
+The Mystic Eyes of Death Perception Buff
+*/
+
+/*QUAKED item_buff_meodp_team1 (0.10 0.10 0.10) (-16 -16 -16) (16 16 16)
+The Mystic Eyes of Death Perception Buff (Red Team)
+*/
+
+/*QUAKED item_buff_meodp_team2 (0.10 0.10 0.10) (-16 -16 -16) (16 16 16)
+The Mystic Eyes of Death Perception Buff (Blue Team)
+*/
+
+/*QUAKED item_buff_meodp_team3 (0.10 0.10 0.10) (-16 -16 -16) (16 16 16)
+The Mystic Eyes of Death Perception Buff (Yellow Team)
+*/
+
+/*QUAKED item_buff_meodp_team4 (0.10 0.10 0.10) (-16 -16 -16) (16 16 16)
+The Mystic Eyes of Death Perception Buff (Pink Team)
+*/
+
+
+/*QUAKED item_buff_random (0.5 0.5 0.5) (-16 -16 -16) (16 16 16)
+A random buff
+*/
+
+/*QUAKED item_buff_random_team1 (0.5 0.5 0.5) (-16 -16 -16) (16 16 16)
+A random buff (Red Team)
+Note: using team-bound random buffs is not recommended to preserve fairness
+*/
+
+/*QUAKED item_buff_random_team2 (0.5 0.5 0.5) (-16 -16 -16) (16 16 16)
+A random buff (Blue Team)
+Note: using team-bound random buffs is not recommended to preserve fairness
+*/
+
+/*QUAKED item_buff_random_team3 (0.5 0.5 0.5) (-16 -16 -16) (16 16 16)
+A random buff (Yellow Team)
+Note: using team-bound random buffs is not recommended to preserve fairness
+*/
+
+/*QUAKED item_buff_random_team4 (0.5 0.5 0.5) (-16 -16 -16) (16 16 16)
+A random buff (Pink Team)
+Note: using team-bound random buffs is not recommended to preserve fairness
+*/
+
+
+/*QUAKED misc_terminal (0.5 0.5 0.5) (-32 -32 -32) (32 32 32)
+A terminal (for g_handgrenades and g_buffs mutators)
+Used to release buffs and switch nadget classes midgame
+-------- MODEL FOR RADIANT ONLY - DO NOT SET THIS AS A KEY --------
+model="models/it/pc.md3"
+*/
+
+/*QUAKED info_player_intermission (0.5 0.5 0.5) (-8 -8 -8) (8 8 8)
+Use this entity as the camera for the scoreboards view at end of matches. Can be aimed by setting the "angles" key or targeting an pointing to an aiming entity. If you use more than one, a random one of these will be used.
+-------- KEYS --------
+angles: sorted as pitch, yaw, roll.
+target: point this to an info_notnull or target_position entity to set the camera's pointing angles.
+*/
+
+
+/*QUAKED item_nadget (1 .3 1) (-30 -30 0) (30 30 48) FLOATING
+Extra nadget
+-------- KEYS --------
+respawntime: time till it respawns (default: 120)
+hg_ammo: how much nadgets to give (default: 1)
+hg_bonus: how much can it go over the regen limit (default: 1)
+team: out of items with the same value here, only one (random one) will spawn. Useful to put multiple items on one spot.
+cnt: weight of this item for random selection using "team". Set to a lower value for items you want to see less likely.
+-------- SPAWNFLAGS --------
+FLOATING: the item will float in air, instead of aligning to the floor by falling
+-------- MODEL FOR RADIANT ONLY - DO NOT SET THIS AS A KEY --------
+model="models/items/g_fuelregen.md3"
+*/

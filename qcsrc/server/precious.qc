@@ -127,8 +127,8 @@ void prec_rune_collect (entity rune, entity player)
 	
 	player.health = max(player.health, 200);
 	player.armorvalue = max(player.armorvalue, 200);
-	if(g_handgrenades)
-		player.hg_ammo = max(player.hg_ammo, cvar("g_handgrenades_ammo") * 2);
+	if(g_nadgets)
+		player.hg_ammo = max(player.hg_ammo, cvar("g_nadgets_ammo") * 2);
 }
 
 void prec_rune_drop (entity rune, float deliberate)
@@ -297,7 +297,7 @@ float prec_rune_bot_eval_pickup (entity player, entity rune)
 
 //---- precious game tests and events ----
 
-void prec_player_die (entity player)
+void prec_player_die (entity player, entity frag_attacker)
 {
     // if we're not playing ka, don't interfere with the caller's natural routine
     if(!g_prec) return;

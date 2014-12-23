@@ -2,6 +2,7 @@
 #ifdef USE_DPRM
 
 void DPRM_Draw2D() {
+    /*
 	if(DPRM_VersionIsSuitable())
 		return;
 	
@@ -14,6 +15,7 @@ void DPRM_Draw2D() {
 	S("Please download and install an update patch from ^2" DPRM_WEBSITE_URL)
 	S("Besides the new features, it includes many bugfixes and performance improvements")
 	#undef S(t)
+    */
 }
 
 #else

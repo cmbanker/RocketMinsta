@@ -1,0 +1,11 @@
+//TAG: soldier
+pain25 sound/player/ayumi/pain25_1 0
+pain50 sound/player/ayumi/pain50_1 0
+pain75 sound/player/ayumi/pain75_1 0
+pain100 sound/player/ayumi/pain100_1 0
+jump sound/player/ayumi/jump1 0
+gasp sound/player/ayumi/gasp 0
+death sound/player/ayumi/death 3
+taunt sound/player/ayumi/taunt 0
+fall sound/player/ayumi/fall1 0
+drown sound/player/ayumi/drown 0
