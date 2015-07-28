@@ -47,7 +47,7 @@ void fillNexuizRMConfigDialog(entity me)
 		me.TD(me, 1, 4, e = makeRMCheckBox(0, "teamlasers", "Team-colored particles"));
 			//OPTDEP("teamlasers")
 	me.TR(me);
-		me.TD(me, 1, 4, e = makeRMCheckBox(0, "rm_fps_friendly", "I play on a toaster"));
+		me.TD(me, 1, 4, e = makeNexuizCheckBox(0, "rm_fps_friendly", "I play on a toaster"));
 	me.TR(me);
 		me.TD(me, 1, 4, e = makeRMCheckBox(0, "legacyvote", "Simple voting screen"));
 	me.TR(me);

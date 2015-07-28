@@ -1915,7 +1915,8 @@ void ClientConnect (void)
 	IP2C_SetCountry(self);
 	
 	stuffcmd(self, strcat("seta _g_rocketminsta ", ftos(g_minstagib && CVAR(g_rocketminsta)), "\n"));
-	SendServerInfo(self);
+	if (clienttype(self) == CLIENTTYPE_REAL)
+		SendServerInfo(self);
 	
     self.hg_type1_picked_nextround = -1;
     self.hg_type2_picked_nextround = -1;

@@ -669,9 +669,10 @@ void PostInit(void)
         case 49:
         case 50:
             TryBindCRAKeys();
+        case 51:
             
 		//More to come here with each update
-		localcmd("seta rm_initialized 51\n");
+		localcmd("seta rm_initialized 52\n");
 		RM_OUTDATED
 		break;
 	}

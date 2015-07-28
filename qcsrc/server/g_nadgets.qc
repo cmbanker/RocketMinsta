@@ -52,6 +52,7 @@ void HG_Precache() {
     precache_sound("weapons/electro_bounce.wav");
     precache_sound("weapons/rocket_mode.wav");
     precache_sound("weapons/nexfire.wav");
+    precache_sound("weapons/electro_fire2.wav");
     precache_sound("porto/expire.wav");
     precache_sound("misc/powerup_shield.wav");
     precache_sound("misc/gg.wav");
@@ -907,25 +908,17 @@ void HG_RemoveAll(entity plr) {
     if(!g_nadgets)
         return;
     
-    for(n = world; (n = find(n, classname, "hg_grenade"));)
-        if(n.owner == plr)
+    for(n = world; (n = findfilter(n, inline float(entity e) {
+        var c = e.classname;
+        return (c == "hg_grenade")  ||
+               (c == "hg_plasma")   ||
+               (c == "hg_napalm")   ||
+               (c == "hg_linker")   ||
+               (c == "hg_sentry");
+    }));) {
+        if((n.realowner && n.realowner == plr) || n.owner == plr)
             HG_Grenade_FadeOut(n);
-    
-    for(n = world; (n = find(n, classname, "hg_plasma"));)
-        if(n.owner == plr)
-            HG_Grenade_FadeOut(n);
-    
-    for(n = world; (n = find(n, classname, "hg_napalm"));)
-        if(n.owner == plr)
-            HG_Grenade_FadeOut(n);
-    
-    for(n = world; (n = find(n, classname, "hg_linker"));)
-        if(n.owner == plr)
-            HG_Grenade_FadeOut(n);
-
-    for(n = world; (n = find(n, classname, "hg_sentry"));)
-        if(n.realowner == plr)
-            HG_Grenade_FadeOut(n);
+    }
 }
 
 void HG_Grenade_Remote_Waypoint_Update(string wpname) {

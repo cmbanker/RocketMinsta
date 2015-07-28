@@ -948,7 +948,7 @@ float client_hasweapon(entity cl, float wpn, float andammo, float complain) {
         cl.hasweapon_complain_spam = time + 0.2;
 
     if(wpn < 0) {
-        if(complain) {
+        if(complain) if (clienttype(cl) == CLIENTTYPE_REAL) {
             play2(cl, "weapons/unavailable.wav");
         }
         return FALSE;

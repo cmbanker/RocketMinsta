@@ -1561,7 +1561,7 @@ void NextLevel()
 		if(other.winning)
 			bprint(other.netname, " ^7wins.\n");
         
-        if(other.iscreature && intermission_viewport && intermission_exittime > time) {
+        if(other.iscreature && intermission_viewport && intermission_exittime > time && clienttype(other) == CLIENTTYPE_REAL) {
             SetCamera(other, intermission_viewport, -1);
             other.angles = intermission_viewport.angles;
             other.angles_z = 0;
